@@ -9,13 +9,13 @@
                             │ HTTPS
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│         Vercel  (lexiq_web/ — Next.js 14)    FREE ✅        │
+│         Vercel  (client/ — Next.js 14)       FREE ✅        │
 │  • Auth (Supabase)  • Chat UI  • Sessions                   │
 └───────────────────────────┬─────────────────────────────────┘
                             │ SSE  /chat  (HTTPS)
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│         Render  (fastapi_service/ — Python 3.11) FREE ✅    │
+│         Render  (server/ — Python 3.11)      FREE ✅        │
 │  • FastAPI + Uvicorn  • backend/ RAG engine                 │
 │  • data/ (PDFs bundled)  • cache/ (BM25 pkl)               │
 └──────────┬───────────────────────────┬──────────────────────┘
@@ -42,7 +42,7 @@
 
 ### Backend
 ```bash
-cd d:\lexiq_pod\fastapi_service
+cd d:\lexiq_pod\server
 d:\lexiq_pod\venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 Health check: http://localhost:8000/health  
@@ -50,7 +50,7 @@ API docs: http://localhost:8000/docs
 
 ### Frontend
 ```bash
-cd d:\lexiq_pod\lexiq_web
+cd d:\lexiq_pod\client
 npm run dev
 ```
 App: http://localhost:3000
@@ -81,7 +81,7 @@ git push -u origin main
 2. Connect your GitHub repo
 3. Render auto-detects `render.yaml` at the root — it will configure everything
 4. **OR** set manually:
-   - **Root Directory:** `fastapi_service`
+   - **Root Directory:** `server`
    - **Runtime:** Python 3
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info`
@@ -118,7 +118,7 @@ curl https://lexiq-api.onrender.com/health
 ### Step 3: Deploy Frontend → Vercel (Free)
 
 1. Go to [vercel.com](https://vercel.com) → **Add New Project** → Import GitHub repo
-2. Set **Root Directory:** `lexiq_web`
+2. Set **Root Directory:** `client`
 3. Framework auto-detected as **Next.js** ✅
 
 4. **Add Environment Variables** in Vercel Dashboard → Settings → Environment Variables:
@@ -172,12 +172,10 @@ lexiq_pod/
 ├── cache/                             ← BM25 pickle cache (committed)
 │   └── bm25_*.pkl
 │
-├── fastapi_service/                   ← Deploy this to Render
+├── server/                            ← Deploy this to Render
 │   ├── main.py                        # FastAPI entry point
 │   ├── requirements.txt
 │   ├── runtime.txt                    # python-3.11.9
-│   ├── Procfile
-│   ├── railway.json                   # (legacy — Render is preferred)
 │   └── backend/                       # RAG engine package
 │       ├── __init__.py
 │       ├── config.py                  # Constants, paths, lookup tables
@@ -194,7 +192,7 @@ lexiq_pod/
 │       ├── engine.py                  # Startup orchestrator
 │       └── chat.py                    # Public API: lexiq_chat_stream()
 │
-└── lexiq_web/                         ← Deploy this to Vercel
+└── client/                            ← Deploy this to Vercel
     ├── vercel.json
     ├── .env.production.example
     ├── next.config.js
@@ -234,7 +232,7 @@ lexiq_pod/
 
 ```bash
 # Run locally once — Pinecone index persists in the cloud
-cd fastapi_service
+cd server
 python -c "
 from backend.config import DATA_DIR, INDEX_NAME, EMBEDDING_MODEL, EMBEDDING_DIM, ACT_CONFIG
 from backend.parsers import load_all_pdfs, parse_all_sections
