@@ -101,7 +101,7 @@ class ChatRequest(BaseModel):
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
-@app.get("/health", tags=["System"])
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["System"])
 async def health():
     """Liveness + readiness probe. Returns 200 when engine is initialized."""
     return {
