@@ -18,6 +18,8 @@ env/
 .env
 .env.local
 .env.*.local
+.env_vercel
+.env_render
 
 # ── PDF source files (NOT needed in production) ───────────────────────────────
 # All legal data is pre-indexed in Pinecone (cloud).

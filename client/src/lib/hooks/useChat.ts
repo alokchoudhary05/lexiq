@@ -143,7 +143,7 @@ export function useChat(): UseChat {
       }
     } catch (err: unknown) {
       if ((err as Error)?.name !== 'AbortError') {
-        const errMsg = '⚠️ Unable to connect to the AI service. Please ensure FastAPI is running on port 8000.'
+        const errMsg = '⚠️ Unable to connect to the AI service. Please try again later.'
         fullContent = errMsg
         setMessages((prev) =>
           prev.map((m) =>
