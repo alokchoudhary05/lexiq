@@ -2,7 +2,7 @@
 backend/engine.py — LexIQ Engine Orchestrator (Production-optimised)
 
 Startup sequence:
-  Embeddings → Load BM25 from pkl cache → Pinecone connect →
+  Embeddings → Load BM25 from bm25_indices → Pinecone connect →
   Ensemble Retrievers → Classifier LLM → Main LLM → Chain building
 
 NO PDF loading at runtime — BM25 pkl files are committed to git
@@ -36,9 +36,9 @@ def initialize_engine() -> bool:
     """
     Boot the LexIQ AI engine (production-optimised).
 
-    BM25 pkl files are loaded from cache/ (committed to git).
+    BM25 pkl files are loaded from bm25_indices/ (committed to git).
     PDFs are NOT loaded at runtime — they are only needed locally
-    to re-index Pinecone or rebuild BM25 cache (rare, one-time op).
+    to re-index Pinecone or rebuild BM25 indices (rare, one-time op).
 
     Returns True on success. Safe to call multiple times (no-op).
     """
@@ -56,14 +56,14 @@ def initialize_engine() -> bool:
         )
         logger.info(f"[Engine] Embeddings ready: {EMBEDDING_MODEL}")
 
-        # ── Step 2: Load BM25 from pre-built pkl cache ────────────────────────
+        # ── Step 2: Load BM25 from pre-built indices ──────────────────────────
         # pkl files (~5 MB total) are committed to git and load in <1s each.
         # If any pkl is missing, that namespace uses pure Pinecone as fallback.
         bm25_by_ns = load_bm25_from_cache()
         if bm25_by_ns:
             logger.info(f"[Engine] BM25 loaded for namespaces: {list(bm25_by_ns.keys())}")
         else:
-            logger.warning("[Engine] No BM25 cache found — using pure Pinecone for all namespaces")
+            logger.warning("[Engine] No BM25 indices found — using pure Pinecone for all namespaces")
 
         # ── Step 3: Verify Pinecone connection ────────────────────────────────
         pc    = Pinecone(api_key=os.environ["PINECONE_API_KEY"])

@@ -17,7 +17,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │         Render  (server/ — Python 3.11)      FREE ✅        │
 │  • FastAPI + Uvicorn  • backend/ RAG engine                 │
-│  • data/ (PDFs bundled)  • cache/ (BM25 pkl)               │
+│  • data/ (PDFs bundled)  • bm25_indices/ (BM25 pkl)         │
 └──────────┬───────────────────────────┬──────────────────────┘
            │                           │
            ▼                           ▼
@@ -71,7 +71,7 @@ git push -u origin main
 ```
 
 > `.gitignore` excludes `.env`, `venv/`, `node_modules/`, `.next/`, `__pycache__/`.  
-> The `data/` PDFs and `cache/` BM25 pkl files **are committed** — they're needed on the server.
+> The `data/` PDFs and `bm25_indices/` BM25 pkl files **are committed** — they're needed on the server.
 
 ---
 
@@ -169,7 +169,7 @@ lexiq_pod/
 │   ├── Income_Tax_Act_2025_as_amended_by_FA_Act_2026.pdf
 │   └── Income-tax_Rules-2026.pdf
 │
-├── cache/                             ← BM25 pickle cache (committed)
+├── bm25_indices/                      ← BM25 pickle indices (committed)
 │   └── bm25_*.pkl
 │
 ├── server/                            ← Deploy this to Render

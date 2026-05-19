@@ -23,7 +23,7 @@ from langchain.retrievers import EnsembleRetriever
 
 import backend.state as state
 from .config import (
-    INDEX_NAME, RETRIEVAL_K, PRIORITY_MAP, CACHE_DIR,
+    INDEX_NAME, RETRIEVAL_K, PRIORITY_MAP, BM25_INDEX_DIR,
 )
 from .language import translate_query_for_retrieval, detect_language
 from .classifier import classify_query
@@ -36,7 +36,7 @@ logger = logging.getLogger("LexIQ.retriever")
 def _bm25_cache_path(ns: str, chunks: list) -> Path:
     key  = f"{ns}_{len(chunks)}_{abs(hash(chunks[0].page_content[:40]))}"
     safe = re.sub(r'[^a-zA-Z0-9_]', '', key)
-    return CACHE_DIR / f"bm25_{safe}.pkl"
+    return BM25_INDEX_DIR / f"bm25_{safe}.pkl"
 
 
 def _load_or_build_bm25(ns: str, chunks: list, k: int = RETRIEVAL_K) -> BM25Retriever:
@@ -45,13 +45,13 @@ def _load_or_build_bm25(ns: str, chunks: list, k: int = RETRIEVAL_K) -> BM25Retr
     if cache_path.exists():
         with open(cache_path, "rb") as fh:
             retriever = pickle.load(fh)
-        logger.info(f"[BM25] [{ns}] loaded from cache ({cache_path.name})")
+        logger.info(f"[BM25] [{ns}] loaded from bm25_indices ({cache_path.name})")
         return retriever
 
     retriever = BM25Retriever.from_documents(chunks, k=k)
     with open(cache_path, "wb") as fh:
         pickle.dump(retriever, fh)
-    logger.info(f"[BM25] [{ns}] built and cached ({cache_path.name})")
+    logger.info(f"[BM25] [{ns}] built and saved to bm25_indices ({cache_path.name})")
     return retriever
 
 
@@ -69,7 +69,7 @@ _KNOWN_NAMESPACES = [
 
 def load_bm25_from_cache() -> dict:
     """
-    Load pre-built BM25 retrievers from cache/*.pkl files.
+    Load pre-built BM25 retrievers from bm25_indices/*.pkl files.
 
     Files are matched by namespace prefix:
       bm25_criminal_bns_474_*.pkl  →  namespace='criminal_bns'
@@ -80,14 +80,14 @@ def load_bm25_from_cache() -> dict:
     """
     bm25_by_ns = {}
     for ns in _KNOWN_NAMESPACES:
-        matched = list(CACHE_DIR.glob(f"bm25_{ns}_*.pkl"))
+        matched = list(BM25_INDEX_DIR.glob(f"bm25_{ns}_*.pkl"))
         if matched:
             pkl_path = matched[0]  # take first match
             try:
                 with open(pkl_path, "rb") as fh:
                     retriever = pickle.load(fh)
                 bm25_by_ns[ns] = retriever
-                logger.info(f"[BM25] [{ns}] loaded from cache: {pkl_path.name}")
+                logger.info(f"[BM25] [{ns}] loaded from bm25_indices: {pkl_path.name}")
             except Exception as exc:
                 logger.warning(f"[BM25] [{ns}] failed to load {pkl_path.name}: {exc}")
         else:
@@ -126,14 +126,14 @@ def build_retrievers(embeddings, bm25_by_ns: dict = None) -> None:
 
     Args:
       embeddings  — OpenAI embeddings object
-      bm25_by_ns  — pre-loaded {namespace: BM25Retriever} from pkl cache.
+      bm25_by_ns  — pre-loaded {namespace: BM25Retriever} from pkl index.
                     If empty/None, all retrievers fall back to pure Pinecone.
     """
     state.embeddings = embeddings
     state.bm25_by_ns = bm25_by_ns or {}
 
     has_bm25 = bool(state.bm25_by_ns)
-    mode     = "Hybrid (Pinecone + BM25)" if has_bm25 else "Pure Pinecone (BM25 cache missing)"
+    mode     = "Hybrid (Pinecone + BM25)" if has_bm25 else "Pure Pinecone (BM25 indices missing)"
     logger.info(f"[Retriever] Building retrievers — mode: {mode}")
 
     # Ensemble retrievers (BM25 automatically included if pkl was loaded)

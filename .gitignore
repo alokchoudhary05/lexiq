@@ -21,17 +21,17 @@ env/
 
 # ── PDF source files (NOT needed in production) ───────────────────────────────
 # All legal data is pre-indexed in Pinecone (cloud).
-# PDFs are only needed locally to re-index Pinecone or rebuild BM25 pkl cache.
+# PDFs are only needed locally to re-index Pinecone or rebuild BM25 indices.
 data/*.pdf
 
 # ── Runtime / local DB files ──────────────────────────────────────────────────
 *.db
 *.sqlite3
 
-# ── BM25 pkl cache IS committed ───────────────────────────────────────────────
+# ── BM25 indices ARE committed ────────────────────────────────────────────────
 # Small files (~5 MB total), load in <1s at startup.
 # Enables full hybrid retrieval (Pinecone 60% + BM25 40%) without any PDF loading.
-# DO NOT add cache/ to this gitignore.
+# DO NOT add bm25_indices/ to this gitignore.
 
 # ── IDE / OS ──────────────────────────────────────────────────────────────────
 .DS_Store

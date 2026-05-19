@@ -28,8 +28,8 @@ warnings.filterwarnings("ignore")
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 DATA_DIR  = ROOT_DIR / "data"
-CACHE_DIR = ROOT_DIR / "cache"
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+BM25_INDEX_DIR = ROOT_DIR / "bm25_indices"
+BM25_INDEX_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Pinecone / Embeddings ──────────────────────────────────────────────────────
 INDEX_NAME      = "lexiq-v3-index"
