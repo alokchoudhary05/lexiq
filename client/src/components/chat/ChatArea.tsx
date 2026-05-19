@@ -26,7 +26,6 @@ export default function ChatArea({
   isStreaming,
   statusMsg,
   userInitials,
-  sourcesOpen,
   onSuggestionClick,
   onShowSources,
 }: ChatAreaProps) {
