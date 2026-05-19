@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: lexiq-api
+    runtime: python
+    rootDir: fastapi_service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Python version
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+      # Skip the 420MB multilingual model to stay within 512MB free tier RAM
+      - key: LOAD_MULTILINGUAL_MODEL
+        value: "false"
+
+      # Set these in Render dashboard — do NOT put real values here
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
