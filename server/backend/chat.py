@@ -1,32 +1,33 @@
 """
-backend/chat.py — Public Chat API
+backend/chat.py — Public Chat API (Agentic Architecture)
 
 The only two functions the FastAPI layer needs to call:
   lexiq_chat(raw_input, session_id, mode)   → dict  (non-streaming)
   lexiq_chat_stream(raw_input, session_id)  → generator of (type, data)
 
-All other logic (retrieval, web search, chain building) is delegated
-to the appropriate sub-modules.
+Architecture (Agentic Tool-Calling):
+  Every message is fed to the main LLM (`gpt-4o`) along with the recent 
+  conversation history and two Tools:
+    - search_indian_law
+    - search_web
+  The LLM natively handles greetings, follow-ups, and off-topic queries, 
+  and calls tools ONLY when it needs to retrieve legal information.
 """
 
 import re
 import logging
+import json
 
-from langchain.chains import create_retrieval_chain
-from langchain.chains import create_history_aware_retriever
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
+from langchain_core.tools import tool
 
 import backend.state as state
 from .config    import ACT_CONFIG, ACT_UNIT, MAX_DISPLAY_SOURCES, COMMAND_MAP
-from .language  import detect_language
-from .retriever import retrieve, _select_retriever
-from .web_search import (
-    web_search_fallback,
-    web_search_fallback_stream,
-    _not_law_message,
-    _no_info_message,
-)
-from .session import get_session_history
+from .language  import get_lang_instruction, detect_language
+from .retriever import retrieve
+from .web_search import web_search_fallback, _not_law_message, _no_info_message
+from .session  import get_session_history
+from .prompts  import AGENT_SYSTEM_PROMPT
 
 logger = logging.getLogger("LexIQ.chat")
 
@@ -34,12 +35,6 @@ logger = logging.getLogger("LexIQ.chat")
 # ── Input helpers ──────────────────────────────────────────────────────────────
 
 def parse_user_command(raw_input: str) -> tuple:
-    """
-    Detect slash-command prefixes (e.g. \\bns, \\tax) and strip them.
-
-    Returns:
-      (clean_query, act_filter_or_None, label_string)
-    """
     stripped = raw_input.strip()
     for pattern, cfg in COMMAND_MAP.items():
         m = re.match(pattern, stripped, re.IGNORECASE)
@@ -50,10 +45,6 @@ def parse_user_command(raw_input: str) -> tuple:
 
 
 def format_sources(context_docs: list) -> list:
-    """
-    Build human-readable source citations from retrieved doc metadata.
-    Limited to MAX_DISPLAY_SOURCES entries.
-    """
     sources = []
     for doc in context_docs:
         meta     = doc.metadata
@@ -74,13 +65,11 @@ def format_sources(context_docs: list) -> list:
 # ── Response post-processing ───────────────────────────────────────────────────
 
 def _strip_llm_sources(text: str) -> str:
-    """Remove any LLM-hallucinated '📚 Sources' section from the answer."""
     pattern = r'\n*(?:\*{0,2})📚\s*\*{0,2}\s*(?:Sources|स्रोत)\*{0,2}\s*\n[-•\*].*'
     return re.sub(pattern, '', text, flags=re.DOTALL | re.IGNORECASE).rstrip()
 
 
 def _strip_emojis(text: str) -> str:
-    """Strip all Unicode emoji / symbol characters while keeping markdown intact."""
     emoji_re = re.compile(
         "[\U0001F600-\U0001F64F"
         "\U0001F300-\U0001F5FF"
@@ -105,24 +94,133 @@ def _clean(text: str) -> str:
     return _strip_emojis(_strip_llm_sources(text))
 
 
-# ── Dynamic per-query chain builder ───────────────────────────────────────────
+# ── Streaming chat (used by FastAPI SSE endpoint) ──────────────────────────────
 
-def _build_dynamic_chain(selected_retriever):
+def lexiq_chat_stream(raw_input: str, session_id: str = "default"):
     """
-    Build a fresh RunnableWithMessageHistory chain for a specific retriever.
-    Called per-request so the correct domain retriever is used.
+    Agentic streaming chat handler — yields (type, data) tuples.
     """
-    hist_ret   = create_history_aware_retriever(
-        state.llm, selected_retriever, state.contextualize_prompt
-    )
-    dynamic_rag = create_retrieval_chain(hist_ret, state.question_answer_chain)
-    return RunnableWithMessageHistory(
-        dynamic_rag,
-        get_session_history,
-        input_messages_key="input",
-        history_messages_key="chat_history",
-        output_messages_key="answer",
-    )
+    query, act_filter, label = parse_user_command(raw_input)
+
+    if not query:
+        yield ("metadata", {
+            "answer": "Please enter a legal question.",
+            "label": label, "sources": [], "source_type": "none",
+        })
+        return
+
+    logger.info(f"[Stream] session={session_id} | label={label} | query={query[:60]}")
+
+    lang = detect_language(query)
+    lang_instruction = get_lang_instruction(lang)
+    
+    # Grab conversation history
+    history = get_session_history(session_id)
+    # Feed last 10 messages (5 turns) to the LLM to preserve tokens
+    recent_history = history.messages[-10:]
+    system_prompt = AGENT_SYSTEM_PROMPT.format(lang_instruction=lang_instruction)
+    messages = [SystemMessage(content=system_prompt)] + recent_history + [HumanMessage(content=query)]
+
+    # We use these variables to capture the output of the tools so we can return them as metadata
+    used_sources = []
+    source_type = "none"
+    route_used = "agent"
+
+    @tool
+    def search_indian_law(search_query: str) -> str:
+        """
+        Search the LexIQ vector database for Indian legal documents (BNS, IPC, CRPC, Income Tax).
+        Call this whenever the user asks a substantive legal question.
+        """
+        nonlocal used_sources, source_type, route_used
+        docs, route, needs_web = retrieve(search_query, act_filter=act_filter)
+        route_used = route
+        
+        if needs_web or not docs:
+            return "NO_SUFFICIENT_DOCS_FOUND_PLEASE_CALL_search_web_INSTEAD"
+            
+        used_sources = format_sources(docs)
+        source_type = "documents"
+        
+        context = ""
+        for doc in docs:
+            act = doc.metadata.get("act", "")
+            sec = doc.metadata.get("section_number", "")
+            context += f"---\nAct: {act}\nSection: {sec}\nContent:\n{doc.page_content}\n"
+        return context
+
+    @tool
+    def search_web(search_query: str) -> str:
+        """
+        Search the internet for legal information outside our database (e.g. Constitutional law, SEBI, Family law).
+        Call this ONLY if the query is outside criminal or tax law, or if search_indian_law fails.
+        """
+        nonlocal used_sources, source_type, route_used
+        web_result = web_search_fallback(search_query, act_filter or "", "web_search", lang)
+        source_type = web_result["source_type"]
+        used_sources = web_result.get("sources", [])
+        route_used = "web_search"
+        return web_result.get("answer", "No info found.")
+
+    # Bind tools to the LLM
+    llm_with_tools = state.llm.bind_tools([search_indian_law, search_web])
+
+    yield ("status", "Analyzing request...")
+
+    # First Pass (Could be the final text answer OR a tool call)
+    first_pass_chunk = None
+    full_answer = ""
+    
+    for chunk in llm_with_tools.stream(messages):
+        if chunk.content:
+            full_answer += chunk.content
+            yield ("token", chunk.content)
+            
+        if first_pass_chunk is None:
+            first_pass_chunk = chunk
+        else:
+            first_pass_chunk += chunk
+
+    # If the LLM decided to call a tool
+    if first_pass_chunk and first_pass_chunk.tool_calls:
+        tc = first_pass_chunk.tool_calls[0]
+        tool_name = tc["name"]
+        
+        if tool_name == "search_indian_law":
+            yield ("status", "Searching legal database...")
+            result = search_indian_law.invoke(tc["args"])
+        elif tool_name == "search_web":
+            yield ("status", "Searching the web...")
+            result = search_web.invoke(tc["args"])
+        else:
+            result = "Unknown tool requested."
+            
+        # Append the tool call and the tool result to messages
+        messages.append(first_pass_chunk)
+        messages.append(ToolMessage(tool_call_id=tc["id"], content=str(result)))
+        
+        yield ("status", "Generating response...")
+        
+        # Second Pass (Stream final answer using the tool result)
+        for chunk in llm_with_tools.stream(messages):
+            if chunk.content:
+                full_answer += chunk.content
+                yield ("token", chunk.content)
+
+    final_answer = _clean(full_answer)
+    
+    # Save the interaction to memory
+    history.add_user_message(query)
+    history.add_ai_message(final_answer)
+
+    yield ("metadata", {
+        "answer": final_answer,
+        "label": label,
+        "lang": lang,
+        "sources": used_sources,
+        "source_type": source_type,
+        "route": route_used,
+    })
 
 
 # ── Non-streaming chat (kept for compatibility / testing) ──────────────────────
@@ -138,166 +236,88 @@ def lexiq_chat(raw_input: str, session_id: str = "default", mode: str = "chat") 
         return {"answer": "Please enter a legal question.",
                 "label": label, "sources": [], "source_type": "none"}
 
-    lang = detect_language(query)
-    logger.info(f"[Chat] session={session_id} | label={label} | lang={lang} | query={query[:60]}")
+    logger.info(f"[Chat] session={session_id} | label={label} | query={query[:60]}")
 
-    # ── Summarize mode ─────────────────────────────────────────────────────────
     if mode == "summarize":
         docs, _, _ = retrieve(query, act_filter=act_filter)
         result     = state.summarize_chain.invoke({"input_documents": docs})
         return {"answer": result["output_text"], "label": label,
                 "sources": [], "source_type": "documents"}
+                
+    lang = detect_language(query)
+    lang_instruction = get_lang_instruction(lang)
+    
+    history = get_session_history(session_id)
+    recent_history = history.messages[-10:]
 
-    docs, route, needs_web = retrieve(query, act_filter=act_filter)
+    system_prompt = AGENT_SYSTEM_PROMPT.format(lang_instruction=lang_instruction)
+    messages = [SystemMessage(content=system_prompt)] + recent_history + [HumanMessage(content=query)]
 
-    # ── NOT_LAW: instant rejection ─────────────────────────────────────────────
-    if route == "not_law":
-        logger.info(f"[Chat][NotLaw] Rejecting in lang={lang}")
-        return {
-            "answer": _not_law_message(lang),
-            "label": label, "lang": lang,
-            "sources": [], "source_type": "none", "route": "not_law",
-        }
+    used_sources = []
+    source_type = "none"
+    route_used = "agent"
 
-    # ── Web fallback ───────────────────────────────────────────────────────────
-    if needs_web:
-        logger.info(f"[Chat][WebFallback] route={route}")
-        web_result = web_search_fallback(query, act_filter or "", route, lang)
-        if web_result["source_type"] == "web":
-            return {
-                "answer": _clean(web_result["answer"]),
-                "label": label, "lang": lang,
-                "sources": web_result.get("sources", []),
-                "source_type": "web", "route": route,
-            }
+    @tool
+    def search_indian_law(search_query: str) -> str:
+        """Search the LexIQ vector database for Indian legal documents (BNS, IPC, CRPC, Income Tax)."""
+        nonlocal used_sources, source_type, route_used
+        docs, route, needs_web = retrieve(search_query, act_filter=act_filter)
+        route_used = route
+        if needs_web or not docs:
+            return "NO_SUFFICIENT_DOCS_FOUND_PLEASE_CALL_search_web_INSTEAD"
+        used_sources = format_sources(docs)
+        source_type = "documents"
+        context = ""
+        for doc in docs:
+            act = doc.metadata.get("act", "")
+            sec = doc.metadata.get("section_number", "")
+            context += f"---\nAct: {act}\nSection: {sec}\nContent:\n{doc.page_content}\n"
+        return context
 
-    # ── RAG chain ──────────────────────────────────────────────────────────────
-    selected_retriever = _select_retriever(act_filter, route, query)
-    logger.info(f"[Chat][Chain] route={route}")
-    dynamic_chain = _build_dynamic_chain(selected_retriever)
+    @tool
+    def search_web(search_query: str) -> str:
+        """Search the internet for legal information outside our database."""
+        nonlocal used_sources, source_type, route_used
+        web_result = web_search_fallback(search_query, act_filter or "", "web_search", lang)
+        source_type = web_result["source_type"]
+        used_sources = web_result.get("sources", [])
+        route_used = "web_search"
+        return web_result.get("answer", "No info found.")
 
-    response    = dynamic_chain.invoke(
-        {"input": query},
-        config={"configurable": {"session_id": session_id}},
-    )
-    answer_text = _clean(response["answer"])
+    llm_with_tools = state.llm.bind_tools([search_indian_law, search_web])
+
+    # First Pass
+    response = llm_with_tools.invoke(messages)
+    
+    if response.tool_calls:
+        tc = response.tool_calls[0]
+        tool_name = tc["name"]
+        if tool_name == "search_indian_law":
+            result = search_indian_law.invoke(tc["args"])
+        elif tool_name == "search_web":
+            result = search_web.invoke(tc["args"])
+        else:
+            result = "Unknown tool requested."
+            
+        messages.append(response)
+        messages.append(ToolMessage(tool_call_id=tc["id"], content=str(result)))
+        
+        # Second Pass
+        final_response = llm_with_tools.invoke(messages)
+        full_answer = final_response.content
+    else:
+        full_answer = response.content
+
+    final_answer = _clean(full_answer)
+    
+    history.add_user_message(query)
+    history.add_ai_message(final_answer)
 
     return {
-        "answer": answer_text,
-        "label": label, "lang": lang,
-        "sources": format_sources(response.get("context", [])),
-        "source_type": "documents", "route": route,
+        "answer": final_answer,
+        "label": label,
+        "lang": lang,
+        "sources": used_sources,
+        "source_type": source_type,
+        "route": route_used,
     }
-
-
-# ── Streaming chat (used by FastAPI SSE endpoint) ──────────────────────────────
-
-def lexiq_chat_stream(raw_input: str, session_id: str = "default"):
-    """
-    Streaming chat handler — yields (type, data) tuples.
-
-    Event types:
-      ('status',   str)   — status messages during retrieval phase
-      ('token',    str)   — individual LLM output tokens
-      ('metadata', dict)  — final metadata dict (sources, lang, route, etc.)
-    """
-    query, act_filter, label = parse_user_command(raw_input)
-
-    if not query:
-        yield ("metadata", {
-            "answer": "Please enter a legal question.",
-            "label": label, "sources": [], "source_type": "none",
-        })
-        return
-
-    lang = detect_language(query)
-    logger.info(
-        f"[Stream] session={session_id} | label={label} | lang={lang} | query={query[:60]}"
-    )
-
-    # ── Phase 1: Retrieval ─────────────────────────────────────────────────────
-    yield ("status", "Searching legal documents...")
-    docs, route, needs_web = retrieve(query, act_filter=act_filter)
-
-    # ── Phase 1a: NOT_LAW — instant rejection, zero LLM call ──────────────────
-    if route == "not_law":
-        logger.info(f"[Stream][NotLaw] Rejecting in lang={lang}")
-        rejection_msg = _not_law_message(lang)
-        yield ("token", rejection_msg)
-        yield ("metadata", {
-            "answer": rejection_msg,
-            "label": label, "lang": lang,
-            "sources": [], "source_type": "none", "route": "not_law",
-        })
-        return
-
-    # ── Phase 2a: Web fallback ─────────────────────────────────────────────────
-    if needs_web:
-        logger.info(f"[Stream][WebFallback] route={route}")
-        yield ("status", "Searching the web...")
-
-        full_answer = ""
-        web_meta    = {}
-        for event_type, data in web_search_fallback_stream(
-            query, act_filter or "", route, lang
-        ):
-            if event_type == "token":
-                full_answer += data
-                yield ("token", data)
-            elif event_type == "metadata":
-                web_meta = data
-
-        if web_meta.get("source_type") == "web":
-            yield ("metadata", {
-                "answer":      _clean(full_answer),
-                "label":       label,
-                "lang":        lang,
-                "sources":     web_meta.get("sources", []),
-                "source_type": "web",
-                "route":       route,
-            })
-            return
-
-        # Web returned nothing useful
-        no_info = web_meta.get("answer", _no_info_message(lang))
-        yield ("token", no_info)
-        yield ("metadata", {
-            "answer":      no_info,
-            "label":       label,
-            "lang":        lang,
-            "sources":     [],
-            "source_type": "none",
-            "route":       route,
-        })
-        return
-
-    # ── Phase 2b: RAG chain streaming ──────────────────────────────────────────
-    yield ("status", "Generating response...")
-
-    selected_retriever = _select_retriever(act_filter, route, query)
-    logger.info(f"[Stream][Chain] route={route}")
-    dynamic_chain = _build_dynamic_chain(selected_retriever)
-
-    full_answer  = ""
-    context_docs = []
-
-    for chunk in dynamic_chain.stream(
-        {"input": query},
-        config={"configurable": {"session_id": session_id}},
-    ):
-        if "answer" in chunk and chunk["answer"]:
-            token = chunk["answer"]
-            full_answer += token
-            yield ("token", token)
-
-        if "context" in chunk and chunk["context"]:
-            context_docs = chunk["context"]
-
-    yield ("metadata", {
-        "answer":      _clean(full_answer),
-        "label":       label,
-        "lang":        lang,
-        "sources":     format_sources(context_docs),
-        "source_type": "documents",
-        "route":       route,
-    })

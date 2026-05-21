@@ -223,9 +223,15 @@ def check_relevance(docs: list, query: str, route: str) -> bool:
 
 # ── Primary retrieval function ─────────────────────────────────────────────────
 
-def retrieve(query: str, act_filter: str = None, k: int = RETRIEVAL_K):
+def retrieve(query: str, act_filter: str = None, route: str = None, k: int = RETRIEVAL_K):
     """
     Route the query and retrieve relevant documents.
+
+    Args:
+      query      — user query (or translated version)
+      act_filter — optional act filter from slash commands
+      route      — pre-computed route from gateway (skips classifier if provided)
+      k          — number of documents to return
 
     Returns:
       docs      — list[Document]
@@ -233,13 +239,17 @@ def retrieve(query: str, act_filter: str = None, k: int = RETRIEVAL_K):
       needs_web — bool: True means caller should fall back to web search
     """
     retrieval_query = translate_query_for_retrieval(query)
-    route = classify_query(retrieval_query)
+
+    # Use pre-computed route from gateway, or fall back to classifier
+    if route is None:
+        route = classify_query(retrieval_query)
+
     logger.info(
         f"[Retrieve] route={route} | lang={detect_language(query)} | filter={act_filter}"
     )
 
     # Short-circuit routes that skip DB entirely
-    if route in ("not_law", "web_search"):
+    if route in ("not_law", "web_search", "greeting", "follow_up"):
         return [], route, (route == "web_search")
 
     # Select retriever

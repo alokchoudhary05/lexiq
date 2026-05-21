@@ -124,6 +124,11 @@ OUT_OF_SCOPE_PATTERNS = [
     r'\barbitration\b', r'\bcompetition act\b',
 ]
 
+# ── Gateway / follow-up constants ──────────────────────────────────────────────
+MAX_HISTORY_FOR_FOLLOWUP = 6
+
+
+
 WEB_DOMAIN_PREFIXES = {
     "BNS":              "Bharatiya Nyaya Sanhita 2023 India",
     "CRPC":             "Code of Criminal Procedure India",
@@ -150,4 +155,5 @@ CATEGORY_TO_ROUTE = {
     "WEB_LAW":       "web_search",
     "NOT_LAW":       "not_law",
     "GENERAL":       "web_search",   # legacy fallback
+    "GREETING":      "greeting",
 }

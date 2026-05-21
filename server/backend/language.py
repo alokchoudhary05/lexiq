@@ -41,3 +41,40 @@ def translate_query_for_retrieval(query: str) -> str:
     if lang in ("hi", "hinglish"):
         logger.info(f"[Language] {lang.upper()} query detected: '{query[:50]}'")
     return query
+
+
+def get_lang_instruction(lang: str) -> str:
+    """
+    Return an explicit language directive string for injection into LLM prompts.
+    Ensures response language matches the user's detected input language.
+    """
+    if lang == "hi":
+        return "Respond ENTIRELY in Devanagari Hindi script. Do NOT use Roman script."
+    if lang == "hinglish":
+        return (
+            "Respond in Hinglish (Roman Hindi mixed with English legal terms). "
+            "Use Roman script, not Devanagari."
+        )
+    return "Respond in English."
+
+
+def add_lang_hint(query: str, lang: str) -> str:
+    """
+    Append a language instruction hint to the user query before sending
+    to the RAG chain.  This reinforces the language rules in the system
+    prompt and prevents the LLM from defaulting to English when the
+    retrieval context is English-only.
+    """
+    if lang == "hinglish":
+        return (
+            f"{query}\n\n"
+            "[System: The user is writing in Hinglish. "
+            "You MUST respond in Hinglish — Roman Hindi mixed with English legal terms.]"
+        )
+    if lang == "hi":
+        return (
+            f"{query}\n\n"
+            "[System: The user is writing in Hindi (Devanagari). "
+            "You MUST respond entirely in Devanagari Hindi.]"
+        )
+    return query
