@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Message } from '@/lib/types'
@@ -10,17 +10,55 @@ interface MessageBubbleProps {
   isStreaming?: boolean
   userInitials: string
   onShowSources?: (sources: string[]) => void
+  onResubmit?: (newText: string) => void
 }
 
-export default function MessageBubble({ message, isStreaming, userInitials, onShowSources }: MessageBubbleProps) {
+export default function MessageBubble({ message, isStreaming, userInitials, onShowSources, onResubmit }: MessageBubbleProps) {
   const isUser = message.role === 'user'
+
+  const [isHovered, setIsHovered] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editVal, setEditVal] = useState(message.content)
+  const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (isUser && isEditing && textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+      textareaRef.current.focus()
+      // Move cursor to the end
+      textareaRef.current.selectionStart = textareaRef.current.value.length
+    }
+  }, [isUser, isEditing])
+
+  const handleSave = () => {
+    setIsEditing(false)
+    if (editVal.trim() && editVal !== message.content) {
+      onResubmit?.(editVal.trim())
+    } else {
+      setEditVal(message.content)
+    }
+  }
+
+  const handleCopyUser = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(message.content)
+    } catch {}
+    setCopyState('copied')
+    setTimeout(() => setCopyState('idle'), 3000)
+  }, [message.content])
 
   if (isUser) {
     return (
-      <div style={{
-        display: 'flex', gap: 10, marginBottom: 22,
-        alignItems: 'flex-start', flexDirection: 'row-reverse',
-      }}>
+      <div 
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          display: 'flex', gap: 10, marginBottom: 22,
+          alignItems: 'flex-start', flexDirection: 'row-reverse',
+        }}
+      >
         {/* User Avatar */}
         <div style={{
           width: 28, height: 28, borderRadius: '50%',
@@ -30,16 +68,115 @@ export default function MessageBubble({ message, isStreaming, userInitials, onSh
         }}>
           {userInitials}
         </div>
-        {/* Bubble */}
+        
+        {/* Bubble Area */}
         <div style={{
-          maxWidth: '84%', padding: '12px 16px',
-          borderRadius: '12px 3px 12px 12px',
-          background: 'var(--bg-surface)',
-          border: '0.5px solid var(--border)',
-          fontSize: 14, lineHeight: 1.7,
-          color: 'var(--text-primary)',
+          maxWidth: '84%', 
+          flex: isEditing ? 1 : undefined,
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4
         }}>
-          {message.content}
+          {isEditing ? (
+            <div style={{
+              background: 'var(--bg-surface)',
+              border: '0.5px solid var(--border)',
+              borderRadius: '12px 3px 12px 12px',
+              padding: '12px 16px',
+              width: '100%',
+            }}>
+              <textarea
+                ref={textareaRef}
+                value={editVal}
+                onChange={(e) => {
+                  setEditVal(e.target.value)
+                  e.target.style.height = 'auto'
+                  e.target.style.height = e.target.scrollHeight + 'px'
+                }}
+                style={{
+                  width: '100%', background: 'transparent', border: 'none',
+                  outline: 'none', color: 'var(--text-primary)',
+                  fontSize: 'var(--chat-font-size, 14px)', lineHeight: 1.7, resize: 'none',
+                  fontFamily: 'inherit', minHeight: 48,
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                <button 
+                  onClick={() => { setIsEditing(false); setEditVal(message.content) }}
+                  style={{ 
+                    background: 'var(--bg-primary)', border: '0.5px solid var(--border)', 
+                    color: 'var(--text-primary)', cursor: 'pointer', 
+                    fontSize: 13, padding: '7px 16px', borderRadius: 20, fontWeight: 500 
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSave}
+                  style={{ 
+                    background: 'var(--text-primary)', border: 'none', 
+                    color: 'var(--bg-primary)', cursor: 'pointer', 
+                    fontSize: 13, padding: '7px 16px', borderRadius: 20, fontWeight: 500 
+                  }}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: '12px 3px 12px 12px',
+              background: 'var(--bg-surface)',
+              border: '0.5px solid var(--border)',
+              fontSize: 'var(--chat-font-size, 14px)', lineHeight: 1.7,
+              color: 'var(--text-primary)',
+              whiteSpace: 'pre-wrap'
+            }}>
+              {message.content}
+            </div>
+          )}
+          
+          {/* Action Row for User (Edit & Copy) */}
+          {!isEditing && (
+            <div style={{ 
+              display: 'flex', gap: 6, 
+              opacity: isHovered ? 1 : 0, 
+              visibility: isHovered ? 'visible' : 'hidden', 
+              transition: 'opacity 0.2s',
+              marginTop: 2
+            }}>
+              <ActionBtn
+                onClick={handleCopyUser}
+                title={copyState === 'copied' ? 'Copied!' : 'Copy'}
+                active={copyState === 'copied'}
+                activeColor="#4ade80"
+              >
+                {copyState === 'copied' ? (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                )}
+                <span style={{ fontSize: 11.5, lineHeight: 1 }}>
+                  {copyState === 'copied' ? 'Copied!' : 'Copy'}
+                </span>
+              </ActionBtn>
+
+              <ActionBtn
+                onClick={() => setIsEditing(true)}
+                title="Edit message"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                <span style={{ fontSize: 11.5, lineHeight: 1 }}>Edit</span>
+              </ActionBtn>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -68,7 +205,7 @@ export default function MessageBubble({ message, isStreaming, userInitials, onSh
         {/* Message Content */}
         <div
           className="prose-lexiq"
-          style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--text-primary)' }}
+          style={{ fontSize: 'var(--chat-font-size, 14px)', lineHeight: 1.75, color: 'var(--text-primary)' }}
         >
           {message.content === '' && isStreaming ? (
             <span className="streaming-cursor" style={{ color: 'var(--text-muted)', fontSize: 13 }}>
@@ -80,7 +217,7 @@ export default function MessageBubble({ message, isStreaming, userInitials, onSh
                 remarkPlugins={[remarkGfm]}
                 components={{
                   p: ({ children }) => <p style={{ margin: '6px 0', color: 'var(--text-primary)' }}>{children}</p>,
-                  strong: ({ children }) => <strong style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{children}</strong>,
+                  strong: ({ children }) => <strong style={{ color: 'var(--gold)', fontWeight: 700 }}>{children}</strong>,
                   em: ({ children }) => <em style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{children}</em>,
                   ul: ({ children }) => <ul style={{ paddingLeft: 20, margin: '8px 0', color: 'var(--text-primary)' }}>{children}</ul>,
                   ol: ({ children }) => <ol style={{ paddingLeft: 20, margin: '8px 0', color: 'var(--text-primary)' }}>{children}</ol>,

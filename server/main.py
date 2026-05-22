@@ -92,11 +92,16 @@ app.add_middleware(
 
 # ── Request / Response models ──────────────────────────────────────────────────
 
+class ClientMemory(BaseModel):
+    data: str = ""
+    signature: str = ""
+
 class ChatRequest(BaseModel):
     query:      str            = Field(..., min_length=1, max_length=2000,
                                        description="Raw user query (with optional domain prefix)")
     session_id: str            = Field(..., description="UUID — used for conversational memory")
     domain:     Optional[str]  = Field("auto", description="Domain hint (auto | criminal | tax)")
+    client_memory: Optional[ClientMemory] = Field(default=None, description="HMAC-signed memory from frontend localStorage")
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -141,6 +146,7 @@ async def chat(request: ChatRequest):
                     for event_type, data in lexiq_chat_stream(
                         request.query,
                         session_id=request.session_id,
+                        client_memory_obj=request.client_memory,
                     ):
                         payload = json.dumps({"type": event_type, "data": data})
                         loop.call_soon_threadsafe(queue.put_nowait, payload)

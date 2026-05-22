@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import MessageBubble from './MessageBubble'
 import { Message } from '@/lib/types'
 
@@ -9,16 +9,29 @@ interface ChatAreaProps {
   isStreaming: boolean
   statusMsg: string
   userInitials: string
-  sourcesOpen: boolean   // kept for future use but layout shift handled by parent
   onSuggestionClick: (text: string) => void
   onShowSources: (sources: string[]) => void
+  onResubmit?: (newText: string) => void
 }
 
-const SUGGESTIONS = [
-  { text: 'Explain Section 103 BNS — Murder & punishment', sub: 'Bharatiya Nyaya Sanhita' },
-  { text: 'How to file an FIR? Step by step process', sub: 'CrPC procedure' },
-  { text: 'BNS vs IPC — key changes & differences', sub: 'Comparative analysis' },
-  { text: 'Bail conditions and eligibility criteria', sub: 'Criminal procedure' },
+
+
+const GREETINGS = [
+  "What's on your mind today?",
+  "How can I assist you with Indian law?",
+  "Ready to decode legal complexities?",
+  "Need guidance on a legal query?",
+  "Navigate the legal system with LexIQ.",
+  "What legal topic shall we explore today?",
+  "Your personal AI legal assistant is ready.",
+  "Have a question about the legal law?",
+  "Simplifying legal law for you.",
+  "Let's find the legal answers you need.",
+  "Empowering you with legal knowledge.",
+  "Ask anything about your legal rights.",
+  "Clear and concise legal insights await.",
+  "Demystifying the Indian law.",
+  "How can LexIQ help you today?"
 ]
 
 export default function ChatArea({
@@ -28,8 +41,14 @@ export default function ChatArea({
   userInitials,
   onSuggestionClick,
   onShowSources,
+  onResubmit,
 }: ChatAreaProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
+  const [greeting, setGreeting] = useState(GREETINGS[0])
+
+  useEffect(() => {
+    setGreeting(GREETINGS[Math.floor(Math.random() * GREETINGS.length)])
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -51,41 +70,11 @@ export default function ChatArea({
         {showWelcome && (
           <div style={{ textAlign: 'center', padding: '40px 0 28px' }}>
             <div style={{ fontSize: 40, marginBottom: 14 }}>⚖</div>
-            <div style={{ fontSize: 28, fontFamily: 'Georgia, serif', color: 'var(--text-primary)', marginBottom: 8 }}>
-              What&apos;s on your mind today?
+            <div style={{ fontSize: 28, fontFamily: 'Georgia, serif', color: 'var(--text-primary)', marginBottom: 8, transition: 'opacity 0.3s' }}>
+              {greeting}
             </div>
             <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 400, margin: '0 auto 32px', lineHeight: 1.6 }}>
-              Ask anything about Indian law — BNS, CrPC, IPC, Income Tax, or Criminal procedure.
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {SUGGESTIONS.map((s, i) => (
-                <div
-                  key={i}
-                  onClick={() => onSuggestionClick(s.text)}
-                  style={{
-                    background: 'var(--bg-surface)',
-                    border: '0.5px solid var(--border)',
-                    borderRadius: 12,
-                    padding: '14px 16px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--gold-border)'
-                    ;(e.currentTarget as HTMLElement).style.background = 'var(--gold-faint)'
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'
-                    ;(e.currentTarget as HTMLElement).style.background = 'var(--bg-surface)'
-                  }}
-                >
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1.4 }}>
-                    {s.text}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.sub}</div>
-                </div>
-              ))}
+              Ask anything about Indian law - BNS, CrPC, IPC, Income Tax, or Criminal procedure, etc...
             </div>
           </div>
         )}
@@ -98,6 +87,7 @@ export default function ChatArea({
             isStreaming={isStreaming && i === messages.length - 1 && msg.role === 'assistant'}
             userInitials={userInitials}
             onShowSources={onShowSources}
+            onResubmit={onResubmit}
           />
         ))}
 

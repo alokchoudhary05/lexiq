@@ -84,11 +84,10 @@ export default function ChatPageClient() {
     setActiveSources(null)           // close sources panel on new chat
   }, [setActiveSessionId, clearMessages])
 
-  // Handle domain change — starts fresh chat
+  // Handle domain change — allow changing mid-conversation
   const handleSelectDomain = useCallback((domain: DomainKey) => {
     setActiveDomain(domain)
-    handleNewChat()
-  }, [setActiveDomain, handleNewChat])
+  }, [setActiveDomain])
 
   if (loading) {
     return (
@@ -123,7 +122,12 @@ export default function ChatPageClient() {
           onNewChat={handleNewChat}
           onSelectSession={handleSelectSession}
           onSelectDomain={handleSelectDomain}
-          onDeleteSession={deleteSession}
+          onDeleteSession={(id) => {
+            deleteSession(id)
+            if (activeSessionId === id) {
+              handleNewChat()
+            }
+          }}
           onSignOut={signOut}
         />
 
@@ -148,9 +152,9 @@ export default function ChatPageClient() {
             isStreaming={isStreaming}
             statusMsg={statusMsg}
             userInitials={userInitials}
-            sourcesOpen={sourcesOpen}
             onSuggestionClick={handleSend}
             onShowSources={(sources) => setActiveSources(sources)}
+            onResubmit={handleSend}
           />
           <InputBar
             onSend={handleSend}

@@ -102,16 +102,18 @@ export default function Sidebar({
         {/* Top Section */}
         <div style={{ padding: '10px 10px 0' }}>
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 6px 12px' }}>
-            <div style={{
-              width: 30, height: 30, background: 'var(--gold)', borderRadius: 7,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 15, color: '#0d0d0d', flexShrink: 0,
-            }}>⚖</div>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Georgia, serif', letterSpacing: '0.5px', color: 'var(--text-primary)' }}>
-              Lex<span style={{ color: 'var(--gold)' }}>IQ</span>
+          <Link href="/" style={{ textDecoration: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 6px 12px' }}>
+              <div style={{
+                width: 30, height: 30, background: 'var(--gold)', borderRadius: 7,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 15, color: '#0d0d0d', flexShrink: 0,
+              }}>⚖</div>
+              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'Georgia, serif', letterSpacing: '0.5px', color: 'var(--text-primary)' }}>
+                Lex<span style={{ color: 'var(--gold)' }}>IQ</span>
+              </div>
             </div>
-          </div>
+          </Link>
 
           {/* New Chat */}
           <button

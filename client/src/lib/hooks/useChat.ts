@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Message, DomainKey, getDomainPrefix } from '@/lib/types'
 import { v4 as uuidv4 } from 'uuid'
+import { createClient } from '@/lib/supabase/client'
 
 interface UseChat {
   sessionId: string | null
@@ -23,6 +24,15 @@ export function useChat(): UseChat {
   const [activeDomain, setActiveDomain] = useState<DomainKey>('auto')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const supabase = createClient()
+  const [clientMemory, setClientMemory] = useState<{data: string, signature: string} | null>(null)
+
+  useEffect(() => {
+    try {
+      const mem = localStorage.getItem('lexiq_memory')
+      if (mem) setClientMemory(JSON.parse(mem))
+    } catch {}
+  }, [])
 
   const sendMessage = useCallback(async (query: string, sid: string) => {
     if (isStreaming) return
@@ -72,6 +82,19 @@ export function useChat(): UseChat {
     try {
       abortRef.current = new AbortController()
 
+      let currentMemory = clientMemory
+      if (!currentMemory) {
+        try {
+          const mem = localStorage.getItem('lexiq_memory')
+          if (mem) {
+            currentMemory = JSON.parse(mem)
+            setClientMemory(currentMemory)
+          }
+        } catch {}
+      }
+
+      const tone = localStorage.getItem('lexiq-tone') || 'balanced'
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,6 +103,8 @@ export function useChat(): UseChat {
           session_id: sid,
           domain: activeDomain,
           domain_prefix: prefix,
+          client_memory: currentMemory,
+          tone,
         }),
         signal: abortRef.current.signal,
       })
@@ -128,6 +153,22 @@ export function useChat(): UseChat {
                   m.id === aiMsgId ? { ...m, metadata: finalMetadata } : m
                 )
               )
+            } else if (event.type === 'memory_update') {
+              try {
+                setClientMemory(event.data)
+                localStorage.setItem('lexiq_memory', JSON.stringify(event.data))
+                
+                // Background upsert to Supabase
+                supabase.auth.getUser().then(({ data: { user } }) => {
+                  if (user) {
+                    supabase.from('user_profiles').upsert({
+                      id: user.id,
+                      memory_data: event.data.data,
+                      memory_signature: event.data.signature
+                    }).then()
+                  }
+                })
+              } catch {}
             } else if (event.type === 'error') {
               fullContent = `⚠️ Error: ${event.data}`
               setMessages((prev) =>

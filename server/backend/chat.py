@@ -23,6 +23,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 
 import backend.state as state
+import backend.security as security
 from .config    import ACT_CONFIG, ACT_UNIT, MAX_DISPLAY_SOURCES, COMMAND_MAP
 from .language  import get_lang_instruction, detect_language
 from .retriever import retrieve
@@ -97,7 +98,7 @@ def _clean(text: str) -> str:
 
 # ── Streaming chat (used by FastAPI SSE endpoint) ──────────────────────────────
 
-def lexiq_chat_stream(raw_input: str, session_id: str = "default"):
+def lexiq_chat_stream(raw_input: str, session_id: str = "default", client_memory_obj=None):
     """
     Agentic streaming chat handler — yields (type, data) tuples.
     """
@@ -119,9 +120,17 @@ def lexiq_chat_stream(raw_input: str, session_id: str = "default"):
     history = get_session_history(session_id)
     # Feed last 10 messages (5 turns) to the LLM to preserve tokens
     recent_history = history.messages[-10:]
+    verified_client_memory = ""
+    if client_memory_obj:
+        if security.verify_memory(client_memory_obj.data, client_memory_obj.signature):
+            verified_client_memory = client_memory_obj.data
+        else:
+            logger.warning(f"Invalid HMAC signature for client_memory in session {session_id}")
+
     system_prompt = AGENT_SYSTEM_PROMPT.format(
         lang_instruction=lang_instruction,
-        current_date=datetime.now().strftime("%B %d, %Y")
+        current_date=datetime.now().strftime("%B %d, %Y"),
+        verified_client_memory=verified_client_memory
     )
     messages = [SystemMessage(content=system_prompt)] + recent_history + [HumanMessage(content=query)]
 
@@ -166,50 +175,84 @@ def lexiq_chat_stream(raw_input: str, session_id: str = "default"):
         route_used = "web_search"
         return web_result.get("answer", "No info found.")
 
+    @tool
+    def update_personal_memory(updated_memory: str) -> str:
+        """
+        Overwrite the persistent user memory. 
+        Provide the FULL updated memory as a concise, deduplicated bulleted list of personal facts.
+        If the user shares a new fact, combine it with the existing memory and provide the updated list.
+        NEVER use this for legal queries or discussion history.
+        """
+        nonlocal verified_client_memory
+        new_sig = security.sign_memory(updated_memory)
+        return json.dumps({"data": updated_memory, "signature": new_sig})
+
     # Bind tools to the LLM
-    llm_with_tools = state.llm.bind_tools([search_indian_law, search_web])
+    llm_with_tools = state.llm.bind_tools([search_indian_law, search_web, update_personal_memory])
 
     yield ("status", "Analyzing request...")
 
-    # First Pass (Could be the final text answer OR a tool call)
-    first_pass_chunk = None
+    # Agent Loop (Allows multiple sequential tool calls)
+    max_iterations = 3
+    iterations = 0
     full_answer = ""
     
-    for chunk in llm_with_tools.stream(messages):
-        if chunk.content:
-            full_answer += chunk.content
-            yield ("token", chunk.content)
-            
-        if first_pass_chunk is None:
-            first_pass_chunk = chunk
-        else:
-            first_pass_chunk += chunk
-
-    # If the LLM decided to call a tool
-    if first_pass_chunk and first_pass_chunk.tool_calls:
-        tc = first_pass_chunk.tool_calls[0]
-        tool_name = tc["name"]
+    while iterations < max_iterations:
+        iterations += 1
+        current_pass_chunk = None
+        tool_call_made = False
         
-        if tool_name == "search_indian_law":
-            yield ("status", "Searching legal database...")
-            result = search_indian_law.invoke(tc["args"])
-        elif tool_name == "search_web":
-            yield ("status", "Searching the web...")
-            result = search_web.invoke(tc["args"])
-        else:
-            result = "Unknown tool requested."
-            
-        # Append the tool call and the tool result to messages
-        messages.append(first_pass_chunk)
-        messages.append(ToolMessage(tool_call_id=tc["id"], content=str(result)))
-        
-        yield ("status", "Generating response...")
-        
-        # Second Pass (Stream final answer using the tool result)
         for chunk in llm_with_tools.stream(messages):
             if chunk.content:
                 full_answer += chunk.content
                 yield ("token", chunk.content)
+                
+            if current_pass_chunk is None:
+                current_pass_chunk = chunk
+            else:
+                current_pass_chunk += chunk
+                
+        if current_pass_chunk and current_pass_chunk.tool_calls:
+            tool_call_made = True
+            tc = current_pass_chunk.tool_calls[0]
+            tool_name = tc["name"]
+            
+            if tool_name == "search_indian_law":
+                yield ("status", "Searching legal database...")
+                result = search_indian_law.invoke(tc["args"])
+            elif tool_name == "search_web":
+                yield ("status", "Searching the web...")
+                result = search_web.invoke(tc["args"])
+            elif tool_name == "update_personal_memory":
+                logger.info(f"[Tool] update_personal_memory | args={tc['args']}")
+                result_json = update_personal_memory.invoke(tc["args"])
+                mem_data = json.loads(result_json)
+                yield ("memory_update", mem_data)
+                
+                result = ToolMessage(
+                    tool_call_id=tc["id"],
+                    name="update_personal_memory",
+                    content="Memory updated successfully."
+                )
+            else:
+                result = "Unknown tool requested."
+                
+            messages.append(current_pass_chunk)
+            if isinstance(result, ToolMessage):
+                messages.append(result)
+            else:
+                messages.append(ToolMessage(tool_call_id=tc["id"], content=str(result)))
+                
+            yield ("status", "Processing retrieved information...")
+            
+        # If LLM didn't call any tools, it has generated its final text response
+        if not tool_call_made:
+            break
+
+    if not full_answer:
+        # Failsafe: If the LLM failed to generate text (e.g., tried to call a tool in the 2nd pass)
+        full_answer = "I'm sorry, I encountered an issue while processing the retrieved information. Could you please try asking again or rephrasing your question?"
+        yield ("token", full_answer)
 
     final_answer = _clean(full_answer)
     

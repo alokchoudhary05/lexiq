@@ -56,6 +56,13 @@ export function useAuth() {
       const res = await fetch('/api/me')
       if (res.ok) {
         const profile = await res.json()
+        if (profile.memory_data && profile.memory_signature) {
+          localStorage.setItem('lexiq_memory', JSON.stringify({
+            data: profile.memory_data,
+            signature: profile.memory_signature
+          }))
+        }
+        
         setUser({
           id: profile.id,
           email: profile.email,
@@ -134,6 +141,30 @@ export function useAuth() {
     setUser(null)
     router.push('/')
   }, [supabase, router])
+
+  // Auto-logout after 3 hours of inactivity
+  useEffect(() => {
+    if (!user) return
+
+    let activityTimeout: NodeJS.Timeout
+
+    const handleActivity = () => {
+      clearTimeout(activityTimeout)
+      activityTimeout = setTimeout(() => {
+        signOut()
+      }, 3 * 60 * 60 * 1000) // 3 hours
+    }
+
+    handleActivity()
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
+    events.forEach(event => window.addEventListener(event, handleActivity))
+
+    return () => {
+      clearTimeout(activityTimeout)
+      events.forEach(event => window.removeEventListener(event, handleActivity))
+    }
+  }, [user, signOut])
 
   const resetPassword = useCallback(async (email: string) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {

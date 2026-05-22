@@ -3,22 +3,27 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 
 export type AppTheme = 'system' | 'light' | 'dark'
-export type AppLanguage = 'auto' | 'en' | 'hi' | 'hinglish'
+export type AppTone = 'simple' | 'balanced' | 'professional'
+export type AppFontSize = 'small' | 'normal' | 'large'
 
 interface ThemeContextValue {
   theme: AppTheme
   resolvedTheme: 'light' | 'dark'
-  language: AppLanguage
+  tone: AppTone
+  fontSize: AppFontSize
   setTheme: (t: AppTheme) => void
-  setLanguage: (l: AppLanguage) => void
+  setTone: (t: AppTone) => void
+  setFontSize: (s: AppFontSize) => void
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: 'dark',
   resolvedTheme: 'dark',
-  language: 'auto',
+  tone: 'balanced',
+  fontSize: 'normal',
   setTheme: () => {},
-  setLanguage: () => {},
+  setTone: () => {},
+  setFontSize: () => {},
 })
 
 function resolveTheme(theme: AppTheme): 'light' | 'dark' {
@@ -34,17 +39,20 @@ function resolveTheme(theme: AppTheme): 'light' | 'dark' {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<AppTheme>('dark')
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark')
-  const [language, setLanguageState] = useState<AppLanguage>('auto')
+  const [tone, setToneState] = useState<AppTone>('balanced')
+  const [fontSize, setFontSizeState] = useState<AppFontSize>('normal')
   const [mounted, setMounted] = useState(false)
 
   // Load saved prefs on mount — never touch <html> data-theme
   useEffect(() => {
     const savedTheme = localStorage.getItem('lexiq-theme') as AppTheme | null
-    const savedLang = localStorage.getItem('lexiq-language') as AppLanguage | null
+    const savedTone = localStorage.getItem('lexiq-tone') as AppTone | null
+    const savedFontSize = localStorage.getItem('lexiq-fontsize') as AppFontSize | null
     const t = savedTheme ?? 'dark'
     setThemeState(t)
     setResolvedTheme(resolveTheme(t))
-    if (savedLang) setLanguageState(savedLang)
+    if (savedTone) setToneState(savedTone)
+    if (savedFontSize) setFontSizeState(savedFontSize)
     setMounted(true)
   }, [])
 
@@ -68,13 +76,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('lexiq-theme', t)
   }, [])
 
-  const setLanguage = useCallback((l: AppLanguage) => {
-    setLanguageState(l)
-    localStorage.setItem('lexiq-language', l)
+  const setTone = useCallback((t: AppTone) => {
+    setToneState(t)
+    localStorage.setItem('lexiq-tone', t)
+  }, [])
+
+  const setFontSize = useCallback((s: AppFontSize) => {
+    setFontSizeState(s)
+    localStorage.setItem('lexiq-fontsize', s)
   }, [])
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, language, setTheme, setLanguage }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, tone, fontSize, setTheme, setTone, setFontSize }}>
       {children}
     </ThemeContext.Provider>
   )
@@ -89,11 +102,13 @@ export function useTheme() {
  * so landing/auth pages are never affected by the user's theme preference.
  */
 export function ChatThemeWrapper({ children }: { children: React.ReactNode }) {
-  const { resolvedTheme } = useTheme()
+  const { resolvedTheme, fontSize } = useTheme()
+  const fontSizePx = fontSize === 'small' ? '12px' : fontSize === 'large' ? '16px' : '14px'
+  
   return (
     <div
       data-theme={resolvedTheme}
-      style={{ display: 'contents' }}
+      style={{ display: 'contents', '--chat-font-size': fontSizePx } as React.CSSProperties}
     >
       {children}
     </div>

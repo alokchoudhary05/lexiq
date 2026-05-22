@@ -12,7 +12,16 @@ export async function GET() {
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
+
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('memory_data, memory_signature')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const memory_data = userProfile?.memory_data ?? ''
+    const memory_signature = userProfile?.memory_signature ?? ''
 
     if (profile) {
       return NextResponse.json({
@@ -22,6 +31,8 @@ export async function GET() {
         role: profile.role ?? 'citizen',
         avatar_url: profile.avatar_url ?? null,
         username: user.user_metadata?.username ?? '',
+        memory_data,
+        memory_signature,
       })
     }
 
@@ -32,6 +43,8 @@ export async function GET() {
       role: user.user_metadata?.role ?? 'citizen',
       avatar_url: user.user_metadata?.avatar_url ?? null,
       username: user.user_metadata?.username ?? '',
+      memory_data,
+      memory_signature,
     })
   } catch {
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

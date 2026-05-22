@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { User } from '@/lib/types'
 import { useRouter } from 'next/navigation'
-import { useTheme, AppTheme, AppLanguage } from '@/lib/ThemeProvider'
+import { useTheme, AppTheme, AppTone, AppFontSize } from '@/lib/ThemeProvider'
+import { useSessions } from '@/lib/hooks/useSessions'
 
 type SettingsTab = 'general' | 'account'
 
@@ -15,7 +16,8 @@ interface SettingsModalProps {
 export default function SettingsModal({ user, onClose }: SettingsModalProps) {
   const router = useRouter()
   const overlayRef = useRef<HTMLDivElement>(null)
-  const { theme, language, setTheme, setLanguage } = useTheme()
+  const { theme, tone, fontSize, setTheme, setTone, setFontSize } = useTheme()
+  const { deleteSession } = useSessions()
 
   const [tab, setTab] = useState<SettingsTab>('general')
 
@@ -24,6 +26,10 @@ export default function SettingsModal({ user, onClose }: SettingsModalProps) {
   const [deleteInput, setDeleteInput] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  // Clear all chats flow
+  const [clearChatsStep, setClearChatsStep] = useState<'idle' | 'confirm'>('idle')
+  const [clearing, setClearing] = useState(false)
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -40,11 +46,24 @@ export default function SettingsModal({ user, onClose }: SettingsModalProps) {
       if (!res.ok) { setDeleteError('Failed to delete account. Please try again.'); setDeleting(false); return }
       // Clear local prefs
       localStorage.removeItem('lexiq-theme')
-      localStorage.removeItem('lexiq-language')
+      localStorage.removeItem('lexiq-tone')
+      localStorage.removeItem('lexiq-fontsize')
       router.push('/')
     } catch {
       setDeleteError('Network error. Please try again.')
       setDeleting(false)
+    }
+  }
+
+  async function handleClearAllChats() {
+    setClearing(true)
+    try {
+      await fetch('/api/sessions?all=true', { method: 'DELETE' })
+      // Use location.reload() to hard refresh and clear state easily
+      window.location.reload()
+    } catch {
+      setClearing(false)
+      setClearChatsStep('idle')
     }
   }
 
@@ -172,20 +191,101 @@ export default function SettingsModal({ user, onClose }: SettingsModalProps) {
               </SettingsRow>
               <div style={{ height: '0.5px', background: 'var(--border)', marginBottom: 20 }} />
 
-              {/* Language */}
-              <SettingsRow label="Language">
-                <CustomSelect<AppLanguage>
-                  value={language}
+              {/* Response Tone */}
+              <SettingsRow label="Response Tone">
+                <CustomSelect<AppTone>
+                  value={tone}
                   options={[
-                    { value: 'auto', label: 'Auto-detect' },
-                    { value: 'en', label: 'English' },
-                    { value: 'hi', label: 'हिन्दी (Hindi)' },
-                    { value: 'hinglish', label: 'Hinglish' },
+                    { value: 'simple', label: 'Simple (Layman)' },
+                    { value: 'balanced', label: 'Balanced (Default)' },
+                    { value: 'professional', label: 'Professional (Legal)' },
                   ]}
-                  onChange={setLanguage}
+                  onChange={setTone}
                 />
               </SettingsRow>
-              <div style={{ height: '0.5px', background: 'var(--border)' }} />
+              <div style={{ height: '0.5px', background: 'var(--border)', marginBottom: 20 }} />
+
+              {/* Font Size */}
+              <SettingsRow label="Chat Font Size">
+                <CustomSelect<AppFontSize>
+                  value={fontSize}
+                  options={[
+                    { value: 'small', label: 'Small' },
+                    { value: 'normal', label: 'Normal' },
+                    { value: 'large', label: 'Large' },
+                  ]}
+                  onChange={setFontSize}
+                />
+              </SettingsRow>
+              <div style={{ height: '0.5px', background: 'var(--border)', marginBottom: 28 }} />
+
+              {/* Danger Zone: Clear All Chats */}
+              {clearChatsStep === 'idle' && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 14, color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif', marginBottom: 3 }}>
+                      Clear all chats
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif' }}>
+                      Delete all your past conversations. This cannot be undone.
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setClearChatsStep('confirm')}
+                    style={{
+                      padding: '7px 18px', borderRadius: 40,
+                      border: '1px solid #f87171',
+                      background: 'transparent', color: '#f87171',
+                      fontSize: 13, fontFamily: 'Inter, sans-serif',
+                      cursor: 'pointer', flexShrink: 0, marginLeft: 16,
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.1)' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                  >
+                    Clear chats
+                  </button>
+                </div>
+              )}
+
+              {clearChatsStep === 'confirm' && (
+                <div style={{
+                  background: 'rgba(248,113,113,0.06)',
+                  border: '0.5px solid rgba(248,113,113,0.25)',
+                  borderRadius: 12, padding: '16px',
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#f87171', fontFamily: 'Inter, sans-serif', marginBottom: 8 }}>
+                    Are you sure?
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', lineHeight: 1.5, marginBottom: 12 }}>
+                    This will permanently delete all your chat history.
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => setClearChatsStep('idle')}
+                      style={{
+                        padding: '6px 16px', borderRadius: 40, border: '0.5px solid var(--border)',
+                        background: 'transparent', color: 'var(--text-muted)', fontSize: 13,
+                        fontFamily: 'Inter, sans-serif', cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleClearAllChats}
+                      disabled={clearing}
+                      style={{
+                        padding: '6px 16px', borderRadius: 40, border: 'none',
+                        background: '#f87171', color: '#fff', fontSize: 13, fontFamily: 'Inter, sans-serif',
+                        cursor: clearing ? 'not-allowed' : 'pointer',
+                        transition: 'background 0.15s',
+                      }}
+                    >
+                      {clearing ? 'Clearing…' : 'Yes, clear all'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -381,7 +481,7 @@ function CustomSelect<T extends string>({
           background: 'var(--bg-surface)',
           border: '0.5px solid var(--border)',
           borderRadius: 10, overflow: 'hidden',
-          zIndex: 200, minWidth: '100%',
+          zIndex: 200, minWidth: 150,
           boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
           animation: 'fadeIn 0.1s ease',
         }}>
@@ -397,6 +497,7 @@ function CustomSelect<T extends string>({
                 fontSize: 13, fontFamily: 'Inter, sans-serif',
                 cursor: 'pointer', textAlign: 'left',
                 transition: 'background 0.1s',
+                whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => { if (opt.value !== value) (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface-2)' }}
               onMouseLeave={(e) => { if (opt.value !== value) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
