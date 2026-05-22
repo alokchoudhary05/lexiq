@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { User } from '@/lib/types'
 import { useRouter } from 'next/navigation'
 import { useTheme, AppTheme, AppTone, AppFontSize } from '@/lib/ThemeProvider'
-import { useSessions } from '@/lib/hooks/useSessions'
 
 type SettingsTab = 'general' | 'account'
 
@@ -17,7 +16,6 @@ export default function SettingsModal({ user, onClose }: SettingsModalProps) {
   const router = useRouter()
   const overlayRef = useRef<HTMLDivElement>(null)
   const { theme, tone, fontSize, setTheme, setTone, setFontSize } = useTheme()
-  const { deleteSession } = useSessions()
 
   const [tab, setTab] = useState<SettingsTab>('general')
 

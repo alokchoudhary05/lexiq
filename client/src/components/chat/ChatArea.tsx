@@ -9,7 +9,6 @@ interface ChatAreaProps {
   isStreaming: boolean
   statusMsg: string
   userInitials: string
-  onSuggestionClick: (text: string) => void
   onShowSources: (sources: string[]) => void
   onResubmit?: (newText: string) => void
 }
@@ -39,7 +38,6 @@ export default function ChatArea({
   isStreaming,
   statusMsg,
   userInitials,
-  onSuggestionClick,
   onShowSources,
   onResubmit,
 }: ChatAreaProps) {

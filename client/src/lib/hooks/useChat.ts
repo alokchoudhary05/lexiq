@@ -213,7 +213,7 @@ export function useChat(): UseChat {
         // Non-blocking
       }
     }
-  }, [isStreaming, activeDomain])
+  }, [isStreaming, activeDomain, clientMemory, supabase])
 
   const clearMessages = useCallback(() => {
     setMessages([])

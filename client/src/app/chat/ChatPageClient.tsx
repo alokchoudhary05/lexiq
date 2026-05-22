@@ -152,7 +152,6 @@ export default function ChatPageClient() {
             isStreaming={isStreaming}
             statusMsg={statusMsg}
             userInitials={userInitials}
-            onSuggestionClick={handleSend}
             onShowSources={(sources) => setActiveSources(sources)}
             onResubmit={handleSend}
           />
