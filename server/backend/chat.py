@@ -17,6 +17,7 @@ Architecture (Agentic Tool-Calling):
 import re
 import logging
 import json
+from datetime import datetime
 
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
@@ -118,7 +119,10 @@ def lexiq_chat_stream(raw_input: str, session_id: str = "default"):
     history = get_session_history(session_id)
     # Feed last 10 messages (5 turns) to the LLM to preserve tokens
     recent_history = history.messages[-10:]
-    system_prompt = AGENT_SYSTEM_PROMPT.format(lang_instruction=lang_instruction)
+    system_prompt = AGENT_SYSTEM_PROMPT.format(
+        lang_instruction=lang_instruction,
+        current_date=datetime.now().strftime("%B %d, %Y")
+    )
     messages = [SystemMessage(content=system_prompt)] + recent_history + [HumanMessage(content=query)]
 
     # We use these variables to capture the output of the tools so we can return them as metadata
@@ -250,7 +254,10 @@ def lexiq_chat(raw_input: str, session_id: str = "default", mode: str = "chat") 
     history = get_session_history(session_id)
     recent_history = history.messages[-10:]
 
-    system_prompt = AGENT_SYSTEM_PROMPT.format(lang_instruction=lang_instruction)
+    system_prompt = AGENT_SYSTEM_PROMPT.format(
+        lang_instruction=lang_instruction,
+        current_date=datetime.now().strftime("%B %d, %Y")
+    )
     messages = [SystemMessage(content=system_prompt)] + recent_history + [HumanMessage(content=query)]
 
     used_sources = []
