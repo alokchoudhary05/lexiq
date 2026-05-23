@@ -98,7 +98,7 @@ export default function ChatPageClient() {
           background: 'var(--bg-primary)',
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>⚖</div>
+            <div style={{ fontSize: 40, marginBottom: 16, color: 'var(--gold)' }}>⚖</div>
             <div style={{ color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
               Loading LexIQ...
             </div>

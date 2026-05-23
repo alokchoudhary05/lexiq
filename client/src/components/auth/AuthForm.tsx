@@ -242,7 +242,7 @@ export default function AuthForm() {
           <InputGroup label="Email Address">
             <input
               type="email"
-              placeholder="alok@example.com"
+              placeholder="alok@lexiq.in"
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
               required
@@ -331,7 +331,7 @@ export default function AuthForm() {
           <InputGroup label="Email Address">
             <input
               type="email"
-              placeholder="alok@example.com"
+              placeholder="alok@lexiq.in"
               value={signupEmail}
               onChange={(e) => setSignupEmail(e.target.value)}
               required
@@ -445,7 +445,7 @@ export default function AuthForm() {
           <InputGroup label="Email Address">
             <input
               type="email"
-              placeholder="alok@example.com"
+              placeholder="alok@lexiq.in"
               value={forgotEmail}
               onChange={(e) => setForgotEmail(e.target.value)}
               required

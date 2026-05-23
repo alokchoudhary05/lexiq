@@ -20,23 +20,23 @@ export default function AboutPage() {
 
         <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: 'var(--text-muted)', lineHeight: 1.9 }}>
           <p style={{ marginBottom: 24 }}>
-            <strong style={{ color: '#f5f0e8' }}>LexIQ</strong> is a legal intelligence platform built to make Indian law accessible to everyone — students, advocates, and citizens alike. We believe that understanding your legal rights should not require expensive consultations or years of study.
+            <strong style={{ color: '#f5f0e8' }}>LexIQ</strong> is an advanced legal intelligence platform built to make Indian law accessible to everyone. We provide a powerful and easy-to-use tool for legal professionals, students, and citizens, ensuring that trusted legal knowledge is always within reach.
           </p>
           <p style={{ marginBottom: 24 }}>
-            Our platform covers the key pillars of Indian law: the <strong style={{ color: '#f5f0e8' }}>Bharatiya Nyaya Sanhita (BNS 2023)</strong>, the Code of Criminal Procedure (CrPC), the Indian Penal Code (IPC 1860), Income Tax statutes, and general criminal law — all accessible through a single conversational interface.
+            Our platform covers the foundational pillars of Indian law: the <strong style={{ color: '#f5f0e8' }}>Bharatiya Nyaya Sanhita (BNS 2023)</strong>, the <strong style={{ color: '#f5f0e8' }}>Code of Criminal Procedure (CrPC)</strong>, the <strong style={{ color: '#f5f0e8' }}>Indian Penal Code (IPC 1860)</strong>, <strong style={{ color: '#f5f0e8' }}>Income Tax statutes</strong>, and <strong style={{ color: '#f5f0e8' }}>general criminal law</strong>. These resources are brought together in one easy-to-use interface.
           </p>
 
           <h2 style={{ color: '#f5f0e8', fontSize: 22, marginBottom: 16, marginTop: 40, fontFamily: 'Georgia, serif' }}>Our Mission</h2>
           <p style={{ marginBottom: 24 }}>
-            To bridge the gap between complex legal language and the common citizen. Every Indian deserves to understand the law that governs them. LexIQ provides plain-language explanations, section references, and practical guidance — in both Hindi and English.
+            Our objective is to break down complex legal language. We turn difficult legal texts into clear, practical answers. By delivering exact section references and easy-to-understand explanations in both Hindi and English, LexIQ empowers users to understand their rights with confidence.
           </p>
 
           <h2 style={{ color: '#f5f0e8', fontSize: 22, marginBottom: 16, marginTop: 40, fontFamily: 'Georgia, serif' }}>Who We Serve</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 32 }}>
             {[
-              { icon: '🎓', title: 'Law Students', desc: 'Quick references, section lookups, and exam preparation support across all major statutes.' },
-              { icon: '⚖', title: 'Advocates', desc: 'Fast case law research, statutory cross-referencing, and drafting assistance.' },
-              { icon: '👤', title: 'Citizens', desc: 'Understand your rights, navigate legal situations, and get plain-language answers without jargon.' },
+              { icon: '👤', title: 'Citizens', desc: 'Clear, jargon-free explanations of fundamental rights and legal procedures for better understanding.' },
+              { icon: '🎓', title: 'Law Students', desc: 'Fast research, exact section references, and exam prep support across core legal areas.' },
+              { icon: '⚖', title: 'Advocates', desc: 'Quick case law analysis, fast section lookups, and smart drafting support to save time.' },
             ].map((item) => (
               <div key={item.title} style={{ background: 'var(--navy-mid)', border: '0.5px solid var(--border-gold)', borderRadius: 12, padding: 24 }}>
                 <div style={{ fontSize: 28, marginBottom: 10 }}>{item.icon}</div>
@@ -63,7 +63,7 @@ export default function AboutPage() {
 function Footer() {
   return (
     <footer style={{ padding: '24px 48px', borderTop: '0.5px solid var(--border-gold)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif' }}>
-      <span>LexIQ — India&apos;s Legal Intelligence Platform</span>
+      <span>LexIQ | India&apos;s Legal Intelligence Platform</span>
       <div style={{ display: 'flex', gap: 20 }}>
         {[['About', '/about'], ['Privacy Policy', '/privacy'], ['Terms of Use', '/terms'], ['Legal Disclaimer', '/legal-disclaimer']].map(([l, h]) => (
           <Link key={l} href={h} style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>{l}</Link>

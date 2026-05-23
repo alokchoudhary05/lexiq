@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import HeroShowcase from './HeroShowcase'
 
 export default function LandingPage() {
   const router = useRouter()
@@ -77,8 +78,8 @@ export default function LandingPage() {
           Your <span style={{ color: 'var(--gold)' }}>Legal Counsel</span>, Available 24/7
         </h1>
 
-        <p style={{ fontSize: 17, color: 'var(--text-muted)', maxWidth: 520, lineHeight: 1.7, marginBottom: 40, fontFamily: 'Inter, sans-serif' }}>
-          LexIQ provides specialized legal guidance on BNS, CrPC, IPC, Income Tax &amp; Criminal Law — built for every Indian, from students to advocates.
+        <p style={{ fontSize: 17, color: 'var(--text-muted)', maxWidth: 580, lineHeight: 1.7, marginBottom: 40, fontFamily: 'Inter, sans-serif' }}>
+          LexIQ delivers authoritative legal intelligence across the Bharatiya Nyaya Sanhita, CrPC, IPC, Income Tax, and general Criminal Law.
         </p>
 
         {/* Single centered CTA */}
@@ -97,23 +98,8 @@ export default function LandingPage() {
           </button>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: 48 }}>
-          {[
-            { num: '5+', label: 'Legal Domains' },
-            { num: '3', label: 'User Segments' },
-            { num: '24/7', label: 'Availability' },
-            { num: 'Hi+En', label: 'Bilingual Support' },
-          ].map((stat, i, arr) => (
-            <div key={stat.label} style={{ display: 'flex', alignItems: 'center', gap: 48 }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 26, color: 'var(--gold)', fontWeight: 'bold' }}>{stat.num}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', letterSpacing: '0.8px', textTransform: 'uppercase' }}>{stat.label}</div>
-              </div>
-              {i < arr.length - 1 && <div style={{ width: 1, height: 36, background: 'var(--border-gold)' }} />}
-            </div>
-          ))}
-        </div>
+        {/* Hero Showcase Loop */}
+        <HeroShowcase />
       </section>
 
       {/* FEATURES SECTION */}
@@ -193,7 +179,7 @@ export default function LandingPage() {
           <div style={{ fontSize: 36, marginBottom: 16 }}>⚖</div>
           <h2 style={{ fontSize: 30, marginBottom: 12 }}>Justice Begins With Knowledge</h2>
           <p style={{ color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif', fontSize: 15, marginBottom: 28, lineHeight: 1.6 }}>
-            Join students, lawyers, and citizens using LexIQ to understand their rights and navigate the Indian legal system.
+            Knowledge is the foundation of justice. Empower yourself with instant, precise legal intelligence and navigate the complexities of Indian law with absolute confidence.
           </p>
           <button
             onClick={() => router.push('/auth')}
@@ -219,7 +205,7 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 24, height: 24, background: 'var(--gold)', borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'var(--navy)', fontWeight: 'bold' }}>⚖</div>
           <span style={{ color: '#f5f0e8', fontWeight: 600 }}>LexIQ</span>
-          <span>— India&apos;s Legal Intelligence Platform</span>
+          <span>| India&apos;s Legal Intelligence Platform</span>
         </div>
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           {[
@@ -242,12 +228,12 @@ export default function LandingPage() {
 }
 
 const FEATURES = [
-  { icon: '📄', title: 'Specialized Legal Coverage', desc: 'Focused guidance on BNS, CrPC, IPC, Income Tax, and Criminal Law — each grounded in domain-specific statutes and provisions.' },
-  { icon: 'ℹ️', title: 'General Legal Queries', desc: 'A broad-spectrum assistant for everyday legal questions — citations, explanations, and plain-language summaries instantly.' },
-  { icon: '👥', title: 'For Everyone', desc: 'Students, advocates, and citizens — LexIQ adapts its response depth and language based on your profile and needs.' },
-  { icon: '💬', title: 'Hindi + English', desc: 'Full bilingual support — ask in Hindi, get answers in English or vice versa. Legal knowledge without language barriers.' },
-  { icon: '📦', title: 'Consultation History', desc: 'Save and revisit past consultations. Build a personal legal knowledge base over time with your conversation history.' },
-  { icon: '📋', title: 'Bare Acts Reference', desc: 'Instant access to full text of Indian statutes. Ask about any section and get the exact wording with a clear explanation.' },
+  { icon: '📄', title: 'Specialized Legal Coverage', desc: 'Clear guidance across core Indian laws, providing specific legal information you can trust.' },
+  { icon: 'ℹ️', title: 'General Legal Queries', desc: 'Instant access to sections, explanations, and clear summaries for everyday legal questions.' },
+  { icon: '👥', title: 'Adaptive Intelligence', desc: 'Designed for diverse users. LexIQ adjusts the depth and language of its answers to match your background and needs.' },
+  { icon: '💬', title: 'Bilingual Accessibility', desc: 'Ask in Hindi and get clear legal answers in English or Hindi, removing language barriers.' },
+  { icon: '📦', title: 'Consultation History', desc: 'Securely save and review past sessions. Build a personal legal library to make future research easier.' },
+  { icon: '📋', title: 'Bare Acts Reference', desc: 'Direct access to the text of Indian laws. Get exact section wording paired with easy-to-understand context.' },
 ]
 
 const LEGAL_DOMAINS = [

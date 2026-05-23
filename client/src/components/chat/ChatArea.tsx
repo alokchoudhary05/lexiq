@@ -67,7 +67,7 @@ export default function ChatArea({
         {/* Welcome State */}
         {showWelcome && (
           <div style={{ textAlign: 'center', padding: '40px 0 28px' }}>
-            <div style={{ fontSize: 40, marginBottom: 14 }}>⚖</div>
+            <div style={{ fontSize: 40, marginBottom: 14, color: 'var(--gold)' }}>⚖</div>
             <div style={{ fontSize: 28, fontFamily: 'Georgia, serif', color: 'var(--text-primary)', marginBottom: 8, transition: 'opacity 0.3s' }}>
               {greeting}
             </div>
