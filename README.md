@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://img.icons8.com/color/96/000000/law.png" alt="LexIQ Logo" width="80" />
+  <img src="https://img.icons8.com/color/96/000000/lady-justice.png" alt="LexIQ Logo - Lady Justice" width="80" />
   
   # LexIQ
 
