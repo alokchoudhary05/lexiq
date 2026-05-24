@@ -1,253 +1,108 @@
-# LexIQ — Production Deployment Guide
+# LexIQ
 
-## Architecture
+**The Advanced Indian Legal RAG Assistant**
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     USER BROWSER                            │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ HTTPS
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│         Vercel  (client/ — Next.js 14)       FREE ✅        │
-│  • Auth (Supabase)  • Chat UI  • Sessions                   │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ SSE  /chat  (HTTPS)
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│         Render  (server/ — Python 3.11)      FREE ✅        │
-│  • FastAPI + Uvicorn  • backend/ RAG engine                 │
-│  • data/ (PDFs bundled)  • bm25_indices/ (BM25 pkl)         │
-└──────────┬───────────────────────────┬──────────────────────┘
-           │                           │
-           ▼                           ▼
-   Pinecone (vector DB)       OpenAI + Tavily APIs
-   (cloud, pre-indexed)       (paid per request)
-```
+LexIQ is a state-of-the-art AI legal assistant designed to provide accurate, source-backed answers to queries regarding Indian Law. Built using an advanced Retrieval-Augmented Generation (RAG) architecture, LexIQ serves as a specialized tool for students, advocates, and citizens to navigate the complexities of the Bharatiya Nyaya Sanhita (BNS), Criminal Procedure Code (CRPC), Indian Penal Code (IPC), and the Income Tax Act & Rules.
 
-### Free Tier Summary
+## Who is it for?
+- **Law Students & Researchers**: Quickly find relevant sections and understand legal concepts with cited sources.
+- **Advocates & Legal Professionals**: Accelerate case research and cross-reference acts efficiently.
+- **Citizens**: Understand legal rights and obligations under Indian law in plain language.
 
-| Service | Platform | Cost | Notes |
-|---|---|---|---|
-| **Backend (FastAPI)** | Render | **Free** | Sleeps after 15 min idle. 30-60s cold start. 512MB RAM. |
-| **Frontend (Next.js)** | Vercel | **Free** | Always on. No sleep. Unlimited bandwidth. |
-| **Auth + DB** | Supabase | **Free** | 500MB DB, 50MB storage, 50,000 MAU |
-| **Vector DB** | Pinecone | **Free** | 1 index, 2M vectors — more than enough |
-
-> **Railway** is NOT free — it's $5/month credit that expires quickly. Use **Render** instead.
-
----
-
-## Quick Start — Local Development
-
-### Backend
-```bash
-cd d:\lexiq_pod\server
-d:\lexiq_pod\venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000
-```
-Health check: http://localhost:8000/health  
-API docs: http://localhost:8000/docs
+## Tech Stack
 
 ### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **UI & Styling**: React, Tailwind CSS, Lucide React
+- **Markdown & Rendering**: React Markdown, Remark GFM
+- **Auth & Database Client**: Supabase SSR & Supabase JS
+
+### Backend
+- **Framework**: FastAPI (Python)
+- **AI Engine**: LangChain, OpenAI (`gpt-4o`)
+- **Vector Database**: Pinecone
+- **Web Search Fallback**: Tavily API
+- **Database & Auth**: Supabase (PostgreSQL)
+
+## Key Features
+- **Intelligent RAG Pipeline**: Context-aware retrieval over specific Indian legal acts.
+- **Agentic Tool-Calling**: The LLM autonomously decides whether to search the legal vector DB, search the web (for off-topic or general law), or update user memory.
+- **Streaming Responses**: Real-time Server-Sent Events (SSE) streaming for a snappy conversational experience.
+- **Secure Local Memory**: Client-side personalization using HMAC-signed `localStorage` memory to persist personal facts securely without database overhead.
+- **Multi-lingual Support**: Automatically detects and responds in the user's preferred language.
+
+## Prerequisites
+- Node.js 18+ and npm
+- Python 3.9+
+- Accounts & API Keys for:
+  - OpenAI
+  - Pinecone
+  - Tavily
+  - Supabase
+
+## Local Setup Instructions
+
+### 1. Clone the repository
 ```bash
-cd d:\lexiq_pod\client
+git clone https://github.com/your-username/lexiq.git
+cd lexiq_pod
+```
+
+### 2. Backend Setup
+```bash
+cd server
+python -m venv venv
+
+# Windows
+.\venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+Create a `.env` file in the `server` directory (or in the root) with the following:
+```env
+OPENAI_API_KEY=your_openai_key
+PINECONE_API_KEY=your_pinecone_key
+TAVILY_API_KEY=your_tavily_key
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_KEY=your_supabase_service_key
+FRONTEND_URL=http://localhost:3000
+MEMORY_SECRET_KEY=your_hmac_secret
+```
+
+Run the FastAPI server:
+```bash
+uvicorn main:app --reload --port 8000
+```
+The backend will be available at `http://localhost:8000`.
+
+### 3. Frontend Setup
+Open a new terminal and navigate to the frontend directory:
+```bash
+cd client
+npm install
+```
+
+Copy the example production environment variables to `.env.local`:
+```bash
+cp .env.production.example .env.local
+```
+
+Edit `.env.local`:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_key
+FASTAPI_URL=http://localhost:8000
+```
+
+Start the Next.js development server:
+```bash
 npm run dev
 ```
-App: http://localhost:3000
+The frontend will be available at `http://localhost:3000`.
 
----
-
-## Deploy to Production
-
-### Step 1: Push to GitHub
-
-```bash
-cd d:\lexiq_pod
-git init
-git add .
-git commit -m "feat: production-grade LexIQ"
-git remote add origin https://github.com/YOUR_USERNAME/lexiq.git
-git push -u origin main
-```
-
-> `.gitignore` excludes `.env`, `venv/`, `node_modules/`, `.next/`, `__pycache__/`.  
-> The `data/` PDFs and `bm25_indices/` BM25 pkl files **are committed** — they're needed on the server.
-
----
-
-### Step 2: Deploy Backend → Render (Free)
-
-1. Go to [render.com](https://render.com) → **New** → **Web Service**
-2. Connect your GitHub repo
-3. Render auto-detects `render.yaml` at the root — it will configure everything
-4. **OR** set manually:
-   - **Root Directory:** `server`
-   - **Runtime:** Python 3
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info`
-   - **Plan:** Free
-
-5. **Add Environment Variables** in Render Dashboard → Environment:
-
-| Key | Value |
-|---|---|
-| `OPENAI_API_KEY` | `sk-proj-...` |
-| `PINECONE_API_KEY` | `pcsk_...` |
-| `TAVILY_API_KEY` | `tvly-dev-...` |
-| `SUPABASE_URL` | `https://xxx.supabase.co` |
-| `SUPABASE_KEY` | `sb_secret_...` |
-| `SUPABASE_ANON_KEY` | `eyJhbGci...` |
-| `FRONTEND_URL` | `https://your-app.vercel.app` *(set after Vercel deploy)* |
-| `LOAD_MULTILINGUAL_MODEL` | `false` *(keep false — saves 420MB RAM on free tier)* |
-
-6. Click **Deploy** → wait ~3-5 min for first build
-7. Copy your Render URL: `https://lexiq-api.onrender.com`
-
-**Verify:**
-```bash
-curl https://lexiq-api.onrender.com/health
-# → {"status":"ok","engine":"LexIQ v3","initialized":true,"sessions":0}
-```
-
-> **Cold start note:** Render free tier sleeps after 15 min of no traffic.  
-> First request after sleep takes ~45-60s to wake up. All subsequent requests are fast.  
-> This is expected behavior on the free tier.
-
----
-
-### Step 3: Deploy Frontend → Vercel (Free)
-
-1. Go to [vercel.com](https://vercel.com) → **Add New Project** → Import GitHub repo
-2. Set **Root Directory:** `client`
-3. Framework auto-detected as **Next.js** ✅
-
-4. **Add Environment Variables** in Vercel Dashboard → Settings → Environment Variables:
-
-| Key | Value |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxx.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJhbGci...` |
-| `SUPABASE_SERVICE_KEY` | `sb_secret_...` |
-| `FASTAPI_URL` | `https://lexiq-api.onrender.com` ← your Render URL |
-
-5. Click **Deploy** → your app is live at `https://lexiq-web.vercel.app`
-
----
-
-### Step 4: Final Wiring
-
-1. **Update FRONTEND_URL on Render:**  
-   Render Dashboard → Environment → set `FRONTEND_URL` = `https://lexiq-web.vercel.app`  
-   → Click **Save** → Render auto-redeploys
-
-2. **Update Supabase Auth:**  
-   Supabase Dashboard → Auth → URL Configuration:
-   - **Site URL:** `https://lexiq-web.vercel.app`
-   - **Redirect URLs:** `https://lexiq-web.vercel.app/auth/callback`
-
-3. **Test end-to-end:**  
-   Open `https://lexiq-web.vercel.app` → Sign in → Ask a legal question → Confirm streaming works ✅
-
----
-
-## Project Structure
-
-```
-lexiq_pod/
-├── .gitignore
-├── render.yaml                        ← Render deployment config
-├── README.md
-├── supabase_schema.sql                ← DB schema (reference)
-├── supabase_security_fix.sql          ← RLS security policies
-├── lexiq_engine.py                    ← Legacy (reference only — deprecated)
-├── run.txt                            ← Local dev commands
-│
-├── data/                              ← Legal PDFs (bundled, ~18MB)
-│   ├── BNS_rules.pdf
-│   ├── IPC_rules.pdf
-│   ├── the_code_of_criminal_procedure.pdf
-│   ├── Income_Tax_Act_2025_as_amended_by_FA_Act_2026.pdf
-│   └── Income-tax_Rules-2026.pdf
-│
-├── bm25_indices/                      ← BM25 pickle indices (committed)
-│   └── bm25_*.pkl
-│
-├── server/                            ← Deploy this to Render
-│   ├── main.py                        # FastAPI entry point
-│   ├── requirements.txt
-│   ├── runtime.txt                    # python-3.11.9
-│   └── backend/                       # RAG engine package
-│       ├── __init__.py
-│       ├── config.py                  # Constants, paths, lookup tables
-│       ├── state.py                   # Runtime singleton registry
-│       ├── parsers.py                 # PDF → Document parsers
-│       ├── chunker.py                 # Document chunking
-│       ├── language.py                # Language detection (regex-based)
-│       ├── prompts.py                 # All LLM prompts in one file
-│       ├── classifier.py              # Query routing (gpt-4o-mini)
-│       ├── retriever.py               # Pinecone + BM25 ensemble
-│       ├── web_search.py              # Tavily web search fallback
-│       ├── session.py                 # In-memory session management
-│       ├── chains.py                  # LangChain chain builders
-│       ├── engine.py                  # Startup orchestrator
-│       └── chat.py                    # Public API: lexiq_chat_stream()
-│
-└── client/                            ← Deploy this to Vercel
-    ├── vercel.json
-    ├── .env.production.example
-    ├── next.config.js
-    └── src/
-        ├── app/                       # Next.js App Router pages
-        ├── components/                # React components
-        └── lib/                       # Hooks, Supabase, types
-```
-
----
-
-## Environment Variables Reference
-
-### Backend (Render)
-| Variable | Required | Description |
-|---|---|---|
-| `OPENAI_API_KEY` | ✅ | GPT-4o + text-embedding-3-large |
-| `PINECONE_API_KEY` | ✅ | Vector store |
-| `TAVILY_API_KEY` | ✅ | Web search fallback |
-| `SUPABASE_URL` | ✅ | Project URL |
-| `SUPABASE_KEY` | ✅ | Service role key |
-| `SUPABASE_ANON_KEY` | ✅ | Public anon key |
-| `FRONTEND_URL` | ✅ | Vercel URL (CORS allowlist) |
-| `LOAD_MULTILINGUAL_MODEL` | ✅ | `false` on Render free (saves 420MB RAM) |
-
-### Frontend (Vercel)
-| Variable | Required | Description |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Public anon key |
-| `SUPABASE_SERVICE_KEY` | ✅ | Server-side service key |
-| `FASTAPI_URL` | ✅ | Render backend URL |
-
----
-
-## Re-indexing Pinecone (only when adding new PDFs)
-
-```bash
-# Run locally once — Pinecone index persists in the cloud
-cd server
-python -c "
-from backend.config import DATA_DIR, INDEX_NAME, EMBEDDING_MODEL, EMBEDDING_DIM, ACT_CONFIG
-from backend.parsers import load_all_pdfs, parse_all_sections
-from backend.chunker import section_chunking, group_chunks_by_namespace
-from langchain_openai import OpenAIEmbeddings
-from langchain_pinecone import PineconeVectorStore
-
-raw = load_all_pdfs()
-_, sections = parse_all_sections(raw)
-chunks = section_chunking(sections)
-by_ns = group_chunks_by_namespace(chunks)
-emb = OpenAIEmbeddings(model=EMBEDDING_MODEL, dimensions=EMBEDDING_DIM)
-
-for ns, docs in by_ns.items():
-    PineconeVectorStore.from_documents(docs, emb, index_name=INDEX_NAME, namespace=ns)
-    print(f'Indexed {len(docs)} chunks → namespace={ns}')
-"
-```
+## Environment Variables Overview
+See `DEPLOYMENT.md` for a comprehensive list and explanation of all required environment variables for both the frontend and backend.
