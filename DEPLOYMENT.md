@@ -1,79 +1,72 @@
-# LexIQ Deployment Guide
+# LexIQ Deployment & Operations Manual
 
-This guide covers everything required to deploy LexIQ (Frontend and Backend) to a production environment.
+This document details the environment configuration, database provisioning, and deployment procedures for the LexIQ platform in a production environment.
 
-## Environment Variables Directory
+## Environment Variables
 
-### Backend Environment Variables (`server/.env`)
-These must be set in your backend hosting environment (e.g., Railway, Render, Heroku).
-
-| Variable | Description |
-|----------|-------------|
-| `OPENAI_API_KEY` | OpenAI API Key for `gpt-4o` and embeddings. |
-| `PINECONE_API_KEY` | API Key for the Pinecone Vector Database. |
-| `TAVILY_API_KEY` | API Key for Tavily web search fallback. |
-| `SUPABASE_URL` | Your Supabase project URL (e.g., `https://xyz.supabase.co`). |
-| `SUPABASE_SERVICE_KEY` | The Supabase Service Role Key. **Never expose this to the frontend.** |
-| `FRONTEND_URL` | The URL of your deployed Next.js application for CORS configuration (e.g., `https://lexiq.vercel.app`). |
-| `MEMORY_SECRET_KEY` | A strong, random string used to HMAC sign the client-side memory. If omitted, defaults to a hardcoded string (Not recommended for production). |
-
-### Frontend Environment Variables (`client/.env.local`)
-These must be set in your frontend hosting environment (e.g., Vercel).
+### Backend Configuration (`server/.env`)
+These variables must be securely injected into the backend hosting infrastructure (e.g., Railway, AWS, Render).
 
 | Variable | Description |
 |----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL (must have `NEXT_PUBLIC_` prefix). |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | The Supabase Anon/Public Key (must have `NEXT_PUBLIC_` prefix). |
-| `SUPABASE_SERVICE_KEY` | The Supabase Service Role Key for server-side Next.js operations. |
-| `FASTAPI_URL` | The deployed URL of your FastAPI backend (e.g., `https://lexiq-api.up.railway.app`). |
+| `OPENAI_API_KEY` | Credentials for OpenAI platform (engine: `gpt-4o`, embeddings). |
+| `PINECONE_API_KEY` | Authentication key for the Pinecone Vector Database. |
+| `TAVILY_API_KEY` | Credentials for Tavily web search fallback API. |
+| `SUPABASE_URL` | The endpoint URL of the Supabase PostgreSQL cluster. |
+| `SUPABASE_SERVICE_KEY` | Supabase Service Role Key. **Critical: Do not expose to client applications.** |
+| `FRONTEND_URL` | Target origin of the deployed Next.js UI, utilized for strict CORS policy enforcement. |
+| `MEMORY_SECRET_KEY` | A cryptographically secure random string used for HMAC-SHA256 client memory signatures. |
+
+### Frontend Configuration (`client/.env.local`)
+These variables are required in the Next.js edge/hosting infrastructure (e.g., Vercel).
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Public endpoint URL of the Supabase cluster. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public Anon Key for Supabase Edge Functions and Auth. |
+| `SUPABASE_SERVICE_KEY` | Service Role Key for server-side Next.js route handlers. |
+| `FASTAPI_URL` | The production URL of the deployed FastAPI backend cluster. |
 
 ---
 
-## 1. Supabase Setup
+## Database Provisioning (Supabase)
 
-1. Create a new project in the [Supabase Dashboard](https://supabase.com/dashboard).
-2. Go to the **SQL Editor** in your Supabase dashboard.
-3. Open a new query and paste the contents of `supabase_schema.sql` (found in the root of this repo).
-4. Run the query. This will:
-   - Create tables: `profiles`, `chat_sessions`, `messages`, `uploaded_files`.
-   - Setup Row Level Security (RLS) policies.
-   - Create triggers for automatic profile creation on user signup.
-   - Create the `user-uploads` storage bucket.
+LexIQ relies on Supabase for Auth, PostgreSQL, and Storage.
 
----
-
-## 2. Backend Deployment (e.g., Railway / Render)
-
-### Option A: Railway (Recommended)
-1. Link your GitHub repository to Railway.
-2. Select the `server` folder as your root directory (or use a Procfile/Docker build if configured).
-3. Ensure the start command is: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-4. Add all the backend environment variables listed above in the Railway Variables dashboard.
-5. Deploy.
-
-### HMAC Secret Key Setup
-Generate a strong cryptographic key for `MEMORY_SECRET_KEY` to secure client memory. You can generate one via Python:
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-Store this securely in your backend environment variables.
+1. Access the **SQL Editor** within your Supabase project dashboard.
+2. Execute the official `supabase_schema.sql` script located in the repository root.
+3. **Execution Results:**
+   - Provisions core tables: `profiles`, `chat_sessions`, `messages`, `uploaded_files`.
+   - Bootstraps Row Level Security (RLS) policies.
+   - Installs Postgres Triggers for automated user profile generation.
+   - Provisions the `user-uploads` secure storage bucket.
 
 ---
 
-## 3. Frontend Deployment (e.g., Vercel)
+## Infrastructure Deployment
 
-1. Link your GitHub repository to [Vercel](https://vercel.com/).
-2. Set the Root Directory to `client`.
-3. Vercel will automatically detect the Next.js framework.
-4. Add all the frontend environment variables in the Vercel Settings -> Environment Variables.
-5. Deploy.
+### Backend Server
+LexIQ's API is optimized for containerized environments or PaaS providers like Railway.
+
+1. Configure your deployment provider to target the `server` directory.
+2. **Startup Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+3. Map all backend variables from the Environment Configuration section.
+4. **Secret Key Generation**: Generate a cryptographically secure key for `MEMORY_SECRET_KEY` using the following command:
+   ```bash
+   python -c "import secrets; print(secrets.token_hex(32))"
+   ```
+
+### Frontend Server
+The Next.js client is optimized for Vercel's edge network.
+
+1. Connect the repository to Vercel and set the Root Directory to `client`.
+2. Populate the environment variables exactly as outlined in the Frontend Configuration section.
+3. Initiate the deployment build.
 
 ---
 
-## Common Production Gotchas to Avoid
+## Operational Guidelines
 
-- **CORS Errors**: Ensure the `FRONTEND_URL` in the backend environment variables exactly matches the domain deployed on Vercel (without trailing slashes). The backend `CORSMiddleware` restricts access to this origin.
-- **Service Key Leaks**: NEVER put the `SUPABASE_SERVICE_KEY` in variables prefixed with `NEXT_PUBLIC_`. Keep it strictly on the server side.
-- **Engine Initialization Timeout**: The FastAPI backend loads heavy LangChain modules on startup (`lifespan` event). On constrained environments (like free tiers), this might cause a boot timeout. Increase the boot timeout limit on your hosting provider if necessary.
-- **Missing HMAC Key**: If you forget to set `MEMORY_SECRET_KEY` in production, anyone could technically forge memory payloads if they discover the default local key. Always define a custom key in production.
-- **Vector DB Index**: Ensure your Pinecone index matches the dimensions expected by your embedding model (e.g., 1536 for OpenAI `text-embedding-3-small`).
+- **CORS Integrity**: Ensure the `FRONTEND_URL` mapped in the backend matches the exact origin (without trailing slashes) of the Vercel deployment. Misconfiguration will result in cross-origin preflight failures.
+- **Engine Boot Times**: The FastAPI service initializes heavy computational libraries (LangChain) on the startup event. If deploying on constrained infrastructure, ensure the boot timeout window is appropriately extended to prevent health check failures.
+- **Vector Space Dimensions**: Confirm that the Pinecone index dimensions match the embedding model in use (e.g., 1536 for `text-embedding-3-small`).
