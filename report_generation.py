@@ -105,12 +105,12 @@ To bridge this gap, this project introduces LexIQ, an AI-powered conversational 
 
 ```mermaid
 flowchart LR
-    Frontend[Next.js Frontend] --> |REST / SSE Request| Backend[FastAPI Backend]
+    Frontend["Next.js Frontend"] --> |REST / SSE Request| Backend["FastAPI Backend"]
     
-    Backend --> |Tool Binding| Agent[Agent Loop]
+    Backend --> |Tool Binding| Agent["Agent Loop"]
     Agent <--> |Search| Pinecone[(Pinecone Vector DB)]
     Agent <--> |Web Search| Tavily[(Tavily Web Engine)]
-    Agent <--> |Memory Sync| MemLogic[HMAC Validator]
+    Agent <--> |Memory Sync| MemLogic["HMAC Validator"]
     
     Frontend <--> |Auth & State| Supabase[(Supabase PostgreSQL)]
     Backend <--> |Session Verification| Supabase
@@ -265,10 +265,10 @@ Furthermore, LexIQ employs a strict relevance fallback mechanism. Even if the cl
 
 ```mermaid
 flowchart TD
-    Query[User Query: "BNS vs IPC murder"]
+    Query["User Query: BNS vs IPC murder"]
     
-    Classifier[Query Classifier: gpt-4o-mini]
-    Route[Route: cross_law_comparison]
+    Classifier["Query Classifier: gpt-4o-mini"]
+    Route["Route: cross_law_comparison"]
     
     Classifier --> Route
     
@@ -333,12 +333,12 @@ Crucially, if the LLM calls `search_indian_law` but the internal database yields
 
 ```mermaid
 flowchart TD
-    Input[User Input] --> Agent[Agentic LLM - gpt-4o]
+    Input["User Input"] --> Agent["Agentic LLM - gpt-4o"]
     
     Agent --> |Decision Loop| ToolCheck{Requires Tool?}
     
     ToolCheck --> |Yes: search_indian_law| LocalDB[(Pinecone Hybrid DB)]
-    ToolCheck --> |Yes: search_web| WebAPI[Tavily Search API]
+    ToolCheck --> |Yes: search_web| WebAPI["Tavily Search API"]
     ToolCheck --> |Yes: update_personal_memory| MemSystem[HMAC Memory Engine]
     
     LocalDB --> Agent
