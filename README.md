@@ -104,4 +104,4 @@ Visit `http://localhost:3000` to access the LexIQ platform.
 - **[System Architecture](ARCHITECTURE.md)** - Deep dive into the Agentic Loop, memory systems, and database schemas.
 - **[API Reference](API.md)** - Documentation for REST and SSE endpoints.
 - **[Deployment Guide](DEPLOYMENT.md)** - Production rollout and environment configuration details.
-- **[Evaluation Report](eval/EVALUATION.md)** - Evaluation of the system.
+- **[Evaluation Report](EVALUATION.md)** - Evaluation of the system.
