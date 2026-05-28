@@ -20,12 +20,12 @@ LexIQ delivers exceptional retrieval accuracy, robust intent routing, and contex
 ### 1. Retrieval Quality
 Retrieval metrics evaluate the engine's ability to find the exact statutory provisions (sections, rules, and acts) in our hybrid database index.
 
-| Metric | Score | Benchmark | Status |
-| :--- | :--- | :--- | :--- |
-| **Hit@3** | **78.5%** | > 75.0% | ✅ Pass |
-| **Hit@6** | **87.5%** | > 85.0% | ✅ Pass |
-| **MRR (Mean Reciprocal Rank)** | **0.69** | > 0.60 | ✅ Pass |
-| **Precision@3** | **0.85** | > 0.75 | ✅ Pass |
+| Metric | Score | Benchmark |
+| :--- | :--- | :--- |
+| **Hit@3** | **78.5%** | > 75.0% |
+| **Hit@6** | **87.5%** | > 85.0% |
+| **MRR (Mean Reciprocal Rank)** | **0.69** | > 0.60 
+| **Precision@3** | **0.85** | > 0.75 |
 
 * **Hit@3 & Hit@6**: Evaluates whether the exact target legal section is present in the top 3 or top 6 retrieved document chunks. A **87.5% Hit@6** rate guarantees that relevant statutory provisions are almost always available to the model.
 * **MRR (Mean Reciprocal Rank)**: Measures how close the first relevant document is to the very top rank. A score of **0.69** demonstrates that the most relevant statutory sections consistently rank in the 1st or 2nd positions.
@@ -36,10 +36,10 @@ Retrieval metrics evaluate the engine's ability to find the exact statutory prov
 ### 2. Generation Quality (LLM-as-a-Judge)
 Generation metrics evaluate the quality, reliability, and correctness of the generated legal answers using a GPT-4o-based judge scoring on a 1.0 to 5.0 scale.
 
-| Metric | Score | Benchmark | Status |
-| :--- | :--- | :--- | :--- |
-| **Faithfulness** | **4.3 / 5.0** | > 4.2 | ✅ Pass |
-| **Relevance** | **4.3 / 5.0** | > 4.2 | ✅ Pass |
+| Metric | Score | Benchmark |
+| :--- | :--- | :--- |
+| **Faithfulness** | **4.3 / 5.0** | > 4.2 |
+| **Relevance** | **4.3 / 5.0** | > 4.2 |
 
 * **Faithfulness**: Measures if the generated response is strictly grounded in the retrieved legal text (preventing hallucinations). A score of **4.3** ensures that LexIQ does not fabricate legal claims and adheres to official statutory bounds.
 * **Relevance**: Evaluates how directly and concisely the response answers the user's question, ensuring a professional and noise-free interaction.
@@ -49,10 +49,10 @@ Generation metrics evaluate the quality, reliability, and correctness of the gen
 ### 3. Agentic & Multilingual Behavior
 Agentic metrics evaluate the decision-making loop of the Tool-Calling LLM agent.
 
-| Metric | Score | Benchmark | Status |
-| :--- | :--- | :--- | :--- |
-| **Intent Routing Accuracy** | **94.1%** | > 90.0% | ✅ Pass |
-| **Language Detection Match** | **95.5%** | > 95.0% | ✅ Pass |
+| Metric | Score | Benchmark |
+| :--- | :--- | :--- |
+| **Intent Routing Accuracy** | **94.1%** | > 90.0% |
+| **Language Detection Match** | **95.5%** | > 95.0% |
 
 * **Intent Routing Accuracy**: Evaluates how reliably the agent decides whether to search the web, query local documents, or chat normally. A **94.1%** accuracy guarantees that the agent initiates the correct tools for nearly all user intents.
 * **Language Detection Match**: Verifies whether the agent accurately identifies Hinglish/Hindi queries and responds in the user's preferred language.

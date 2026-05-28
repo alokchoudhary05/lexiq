@@ -11,24 +11,24 @@
 ## Results by Category
 
 ### Retrieval Quality
-| Metric | Score | Benchmark | Status |
-|--------|-------|-----------|--------|
-| **Hit@3** | 78.5% | > 75.0% | ✅ Pass |
-| **Hit@6** | 87.5% | > 85.0% | ✅ Pass |
-| **MRR**   | 0.69 | > 0.60 | ✅ Pass |
-| **Precision@3**| 0.85 | > 0.75 | ✅ Pass |
+| Metric | Score | Benchmark |
+|--------|-------|-----------|
+| **Hit@3** | 78.5% | > 75.0% |
+| **Hit@6** | 87.5% | > 85.0% |
+| **MRR**   | 0.69 | > 0.60 |
+| **Precision@3**| 0.85 | > 0.75 |
 
 ### Generation Quality (LLM Judge 1-5)
-| Metric | Score | Benchmark | Status |
-|--------|-------|-----------|--------|
-| **Faithfulness** | 4.3/5.0 | > 4.2 | ✅ Pass |
-| **Relevance** | 4.3/5.0 | > 4.2 | ✅ Pass |
+| Metric | Score | Benchmark |
+|--------|-------|-----------|
+| **Faithfulness** | 4.3/5.0 | > 4.2 |
+| **Relevance** | 4.3/5.0 | > 4.2 |
 
 ### Agent Behavior
-| Metric | Score | Benchmark | Status |
-|--------|-------|-----------|--------|
-| **Intent Routing Accuracy** | 94.1% | > 90.0% | ✅ Pass |
-| **Language Detection Match** | 95.5% | > 95.0% | ✅ Pass |
+| Metric | Score | Benchmark |
+|--------|-------|-----------|
+| **Intent Routing Accuracy** | 94.1% | > 90.0% |
+| **Language Detection Match** | 95.5% | > 95.0% |
 
 ## Latency Breakdown
 
@@ -37,21 +37,3 @@
 | **Retrieval Only** | 2.80s | 4.67s | 8.16s |
 | **End-to-End Chat** | 5.22s | 12.17s | 16.42s |
 *Note: End-to-End includes multiple agent tool-calling loops and generation.*
-
-## Comparison with Midterm Baseline
-Through continuous optimization of the hybrid Pinecone + BM25 ensemble retriever, LexIQ has significantly improved its retrieval quality:
-
-* **Midterm Retrieval Accuracy (Hit@6)**: 83.3%
-* **Current System (Hit@6)**: **87.5%**
-* **Improvement (Delta)**: **+4.2%**
-
-<!-- ## Failure Analysis
-- **Query**: "Tell me about Section 80C deductions."
-  - **Reason**: Source mismatch: expected documents, got web
-- **Query**: "What is BNS Section 105?"
-  - **Reason**: Source mismatch: expected documents, got web
-
-## Recommendations
-- **Latency Optimization**: Consider stream-optimising TTFT (Time to First Token) and parallelizing web search for edge cases to reduce P90/P99 latency.
-- **Retrieval Coverage**: Review failed queries to identify if missing chunks or mismatched semantic vocabularies caused missed sections.
-- **Agent Guardrails**: Enhance prompt constraints around multi-turn ambiguity if conversational routing missed contexts. -->
